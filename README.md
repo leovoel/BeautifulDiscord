@@ -36,3 +36,7 @@ Usage of a virtual environment is recommended, to not pollute your global packag
 - `psutil` library: https://github.com/giampaolo/psutil
 
 Normally, `pip` should install any required dependencies.
+
+## More GIFs
+
+![demo gif](http://i.imgur.com/w0bQOJ6.gif)
