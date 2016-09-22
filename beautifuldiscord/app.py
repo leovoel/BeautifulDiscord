@@ -30,6 +30,7 @@ Discord will close and then be relaunched when the tool completes.
 """
     parser = argparse.ArgumentParser(description=description.strip())
     parser.add_argument('--css', metavar='file', help='Location of the CSS file to watch')
+    parser.add_argument('--revert', action='store_true', help='Reverts any changes made to Discord (does not delete CSS)')
     args = parser.parse_args()
 
     if args.css:
@@ -109,45 +110,56 @@ def main():
 
     os.chdir(discord.path)
     discord.terminate()
-    extract_asar()
 
-    if not os.path.exists(args.css):
-        with open(args.css, 'w') as f:
-            f.write('/* put your custom css here. */')
+    if args.revert:
+        try:
+            shutil.rmtree('./resources/app')
+            shutil.move('./resources/original_app.asar', './resources/app.asar')
+        except FileNotFoundError as e:
+            # assume things are fine for now i guess
+            print('No changes to revert.')
+        else:
+            print('Reverted changes, no more CSS hot-reload :(')
+    else:
+        extract_asar()
 
-    with open('./resources/app/index.js', 'r') as f:
-        entire_thing = f.read()
+        if not os.path.exists(args.css):
+            with open(args.css, 'w') as f:
+                f.write('/* put your custom css here. */')
 
-    css_reload_script = """var customCSSPath = '%s';
-    var customCSS = _fs2.default.readFileSync(customCSSPath, 'utf-8');
-    mainWindow.webContents.on('dom-ready', function () {
-      mainWindow.webContents.executeJavaScript(
-        'window.myStyles = document.createElement("style");' +
-        'window.myStyles.innerHTML = `' + customCSS + '`;' +
-        'document.head.appendChild(window.myStyles);'
-      );
+        with open('./resources/app/index.js', 'r') as f:
+            entire_thing = f.read()
 
-      _fs2.default.watch(customCSSPath, { encoding: 'utf-8' }, function(eventType, filename) {
-        if(eventType === 'change') {
-          var changed = _fs2.default.readFileSync(customCSSPath, 'utf-8');
+        css_reload_script = """var customCSSPath = '%s';
+        var customCSS = _fs2.default.readFileSync(customCSSPath, 'utf-8');
+        mainWindow.webContents.on('dom-ready', function () {
           mainWindow.webContents.executeJavaScript(
-            "window.myStyles.innerHTML = `" + changed + "`;"
+            'window.myStyles = document.createElement("style");' +
+            'window.myStyles.innerHTML = `' + customCSS + '`;' +
+            'document.head.appendChild(window.myStyles);'
           );
-        }
-      });
-    });""" % args.css
 
-    entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
+          _fs2.default.watch(customCSSPath, { encoding: 'utf-8' }, function(eventType, filename) {
+            if(eventType === 'change') {
+              var changed = _fs2.default.readFileSync(customCSSPath, 'utf-8');
+              mainWindow.webContents.executeJavaScript(
+                "window.myStyles.innerHTML = `" + changed + "`;"
+              );
+            }
+          });
+        });""" % args.css
 
-    with open('./resources/app/index.js', 'w') as f:
-        f.write(entire_thing)
+        entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
-    print(
-        '\nDone!\n' +
-        '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
-        "which will be reloaded whenever it's saved.\n" +
-        '\nRelaunching Discord now...'
-    )
+        with open('./resources/app/index.js', 'w') as f:
+            f.write(entire_thing)
+
+        print(
+            '\nDone!\n' +
+            '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
+            "which will be reloaded whenever it's saved.\n" +
+            '\nRelaunching Discord now...'
+        )
 
     discord.launch()
 
