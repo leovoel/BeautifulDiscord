@@ -1,7 +1,9 @@
 BeautifulDiscord
 ================
 
-Simple Python script that adds CSS hot-reload to discord.
+Simple Python script that adds CSS hot-reload to Discord.
+
+![demo gif](http://i.imgur.com/xq4HS5f.gif)
 
 ## Usage
 
