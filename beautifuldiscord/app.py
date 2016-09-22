@@ -3,6 +3,7 @@
 import os
 import shutil
 import argparse
+import textwrap
 import subprocess
 import psutil
 from collections import namedtuple
@@ -125,29 +126,60 @@ def main():
 
         if not os.path.exists(args.css):
             with open(args.css, 'w') as f:
-                f.write('/* put your custom css here. */')
+                f.write('/* put your custom css here. */\n')
+
+        css_injection_script = textwrap.dedent("""\
+            window._fs = require("fs");
+            window._fileWatcher = null;
+            window._styleTag = null;
+
+            window.setupCSS = function(path) {
+              var customCSS = window._fs.readFileSync(path, "utf-8");
+              if(window._styleTag === null) {
+                window._styleTag = document.createElement("style");
+                document.head.appendChild(window._styleTag);
+              }
+              window._styleTag.innerHTML = customCSS;
+              if(window._fileWatcher === null) {
+                window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
+                  function(eventType, filename) {
+                    if(eventType === "change") {
+                      var changed = window._fs.readFileSync(path, "utf-8");
+                      window._styleTag.innerHTML = changed;
+                    }
+                  }
+                );
+              }
+            };
+
+            window.tearDownCSS = function() {
+              if(window._styleTag !== null) { window._styleTag.innerHTML = ""; }
+              if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
+            };
+
+            window.applyAndWatchCSS = function(path) {
+              window.tearDownCSS();
+              window.setupCSS(path);
+            };
+
+            window.applyAndWatchCSS('%s');
+        """ % args.css.replace('\\', '\\\\'))
+
+        with open('./resources/app/cssInjection.js', 'w') as f:
+            f.write(css_injection_script)
+
+        css_injection_script_path = os.path.abspath('./resources/app/cssInjection.js').replace('\\', '\\\\')
+
+        css_reload_script = textwrap.dedent("""\
+            mainWindow.webContents.on('dom-ready', function () {
+              mainWindow.webContents.executeJavaScript(
+                _fs2.default.readFileSync('%s', 'utf-8')
+              );
+            });
+        """ % css_injection_script_path)
 
         with open('./resources/app/index.js', 'r') as f:
             entire_thing = f.read()
-
-        css_reload_script = """var customCSSPath = '%s';
-        var customCSS = _fs2.default.readFileSync(customCSSPath, 'utf-8');
-        mainWindow.webContents.on('dom-ready', function () {
-          mainWindow.webContents.executeJavaScript(
-            'window.myStyles = document.createElement("style");' +
-            'window.myStyles.innerHTML = `' + customCSS + '`;' +
-            'document.head.appendChild(window.myStyles);'
-          );
-
-          _fs2.default.watch(customCSSPath, { encoding: 'utf-8' }, function(eventType, filename) {
-            if(eventType === 'change') {
-              var changed = _fs2.default.readFileSync(customCSSPath, 'utf-8');
-              mainWindow.webContents.executeJavaScript(
-                "window.myStyles.innerHTML = `" + changed + "`;"
-              );
-            }
-          });
-        });""" % args.css
 
         entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
