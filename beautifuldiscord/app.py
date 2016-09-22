@@ -92,7 +92,7 @@ def extract_asar():
 
                 if answer.lower().startswith('n'):
                     print('Exiting.')
-                    return
+                    return False
 
                 shutil.rmtree('./resources/app')
                 a.extract('./resources/app')
@@ -100,6 +100,7 @@ def extract_asar():
         shutil.move('./resources/app.asar', './resources/original_app.asar')
     except FileNotFoundError as e:
         print('WARNING: app.asar not found')
+    return True
 
 def main():
     args = parse_args()
@@ -122,76 +123,75 @@ def main():
         else:
             print('Reverted changes, no more CSS hot-reload :(')
     else:
-        extract_asar()
+        if extract_asar():
+            if not os.path.exists(args.css):
+                with open(args.css, 'w') as f:
+                    f.write('/* put your custom css here. */\n')
 
-        if not os.path.exists(args.css):
-            with open(args.css, 'w') as f:
-                f.write('/* put your custom css here. */\n')
+            css_injection_script = textwrap.dedent("""\
+                window._fs = require("fs");
+                window._fileWatcher = null;
+                window._styleTag = null;
 
-        css_injection_script = textwrap.dedent("""\
-            window._fs = require("fs");
-            window._fileWatcher = null;
-            window._styleTag = null;
-
-            window.setupCSS = function(path) {
-              var customCSS = window._fs.readFileSync(path, "utf-8");
-              if(window._styleTag === null) {
-                window._styleTag = document.createElement("style");
-                document.head.appendChild(window._styleTag);
-              }
-              window._styleTag.innerHTML = customCSS;
-              if(window._fileWatcher === null) {
-                window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
-                  function(eventType, filename) {
-                    if(eventType === "change") {
-                      var changed = window._fs.readFileSync(path, "utf-8");
-                      window._styleTag.innerHTML = changed;
-                    }
+                window.setupCSS = function(path) {
+                  var customCSS = window._fs.readFileSync(path, "utf-8");
+                  if(window._styleTag === null) {
+                    window._styleTag = document.createElement("style");
+                    document.head.appendChild(window._styleTag);
                   }
-                );
-              }
-            };
+                  window._styleTag.innerHTML = customCSS;
+                  if(window._fileWatcher === null) {
+                    window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
+                      function(eventType, filename) {
+                        if(eventType === "change") {
+                          var changed = window._fs.readFileSync(path, "utf-8");
+                          window._styleTag.innerHTML = changed;
+                        }
+                      }
+                    );
+                  }
+                };
 
-            window.tearDownCSS = function() {
-              if(window._styleTag !== null) { window._styleTag.innerHTML = ""; }
-              if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
-            };
+                window.tearDownCSS = function() {
+                  if(window._styleTag !== null) { window._styleTag.innerHTML = ""; }
+                  if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
+                };
 
-            window.applyAndWatchCSS = function(path) {
-              window.tearDownCSS();
-              window.setupCSS(path);
-            };
+                window.applyAndWatchCSS = function(path) {
+                  window.tearDownCSS();
+                  window.setupCSS(path);
+                };
 
-            window.applyAndWatchCSS('%s');
-        """ % args.css.replace('\\', '\\\\'))
+                window.applyAndWatchCSS('%s');
+            """ % args.css.replace('\\', '\\\\'))
 
-        with open('./resources/app/cssInjection.js', 'w') as f:
-            f.write(css_injection_script)
+            with open('./resources/app/cssInjection.js', 'w') as f:
+                f.write(css_injection_script)
 
-        css_injection_script_path = os.path.abspath('./resources/app/cssInjection.js').replace('\\', '\\\\')
+            css_injection_script_path = os.path.abspath('./resources/app/cssInjection.js').replace('\\', '\\\\')
 
-        css_reload_script = textwrap.dedent("""\
-            mainWindow.webContents.on('dom-ready', function () {
-              mainWindow.webContents.executeJavaScript(
-                _fs2.default.readFileSync('%s', 'utf-8')
-              );
-            });
-        """ % css_injection_script_path)
+            css_reload_script = textwrap.dedent("""\
+                mainWindow.webContents.on('dom-ready', function () {
+                  mainWindow.webContents.executeJavaScript(
+                    _fs2.default.readFileSync('%s', 'utf-8')
+                  );
+                });
+            """ % css_injection_script_path)
 
-        with open('./resources/app/index.js', 'r') as f:
-            entire_thing = f.read()
+            with open('./resources/app/index.js', 'r') as f:
+                entire_thing = f.read()
 
-        entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
+            entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
-        with open('./resources/app/index.js', 'w') as f:
-            f.write(entire_thing)
+            with open('./resources/app/index.js', 'w') as f:
+                f.write(entire_thing)
 
-        print(
-            '\nDone!\n' +
-            '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
-            "which will be reloaded whenever it's saved.\n" +
-            '\nRelaunching Discord now...'
-        )
+            print(
+                '\nDone!\n' +
+                '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
+                "which will be reloaded whenever it's saved.\n" +
+                '\nRelaunching Discord now...'
+            )
 
     discord.launch()
 
