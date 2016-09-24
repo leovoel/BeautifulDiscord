@@ -18,7 +18,8 @@ def discord_process_terminate(self):
         process.terminate()
 
 def discord_process_launch(self):
-    subprocess.Popen([os.path.join(self.path, self.exe)])
+    with open(os.devnull, 'w') as f:
+        subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
 
 def discord_process_resources_path(self):
     if sys.platform == 'darwin':
