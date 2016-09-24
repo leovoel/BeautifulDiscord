@@ -6,6 +6,7 @@ import argparse
 import textwrap
 import subprocess
 import psutil
+import sys
 from collections import namedtuple
 from beautifuldiscord.asar import Asar
 
@@ -19,8 +20,19 @@ def discord_process_terminate(self):
 def discord_process_launch(self):
     subprocess.Popen([os.path.join(self.path, self.exe)])
 
+def discord_process_resources_path(self):
+    if sys.platform == 'darwin':
+        # OS X has a different resources path
+        # Application directory is under <[EXE].app/Contents/MacOS/[EXE]>
+        # where [EXE] is Discord Canary, Discord PTB, etc
+        # Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
+        # So we need to fetch the folder based on the executable path.
+        return os.path.join('/Applications/', '%s.app' % self.exe, 'Contents/Resources')
+    return os.path.join(self.path, 'resources')
+
 DiscordProcess.terminate = discord_process_terminate
 DiscordProcess.launch = discord_process_launch
+DiscordProcess.resources_path = property(discord_process_resources_path)
 
 def parse_args():
     description = """\
@@ -49,7 +61,7 @@ def discord_process():
         except psutil.AccessDenied:
             pass
         else:
-            if exe.startswith('Discord'):
+            if exe.startswith('Discord') and not exe.endswith('Helper'):
                 entry = executables.get(exe)
 
                 if entry is None:
@@ -84,9 +96,9 @@ def discord_process():
 
 def extract_asar():
     try:
-        with Asar.open('./resources/app.asar') as a:
+        with Asar.open('./app.asar') as a:
             try:
-                a.extract('./resources/app')
+                a.extract('./app')
             except FileExistsError:
                 answer = input('asar already extracted, overwrite? (Y/n): ')
 
@@ -94,10 +106,10 @@ def extract_asar():
                     print('Exiting.')
                     return False
 
-                shutil.rmtree('./resources/app')
-                a.extract('./resources/app')
+                shutil.rmtree('./app')
+                a.extract('./app')
 
-        shutil.move('./resources/app.asar', './resources/original_app.asar')
+        shutil.move('./app.asar', './original_app.asar')
     except FileNotFoundError as e:
         print('WARNING: app.asar not found')
     return True
@@ -110,13 +122,13 @@ def main():
         print(str(e))
         return
 
-    os.chdir(discord.path)
+    os.chdir(discord.resources_path)
     discord.terminate()
 
     if args.revert:
         try:
-            shutil.rmtree('./resources/app')
-            shutil.move('./resources/original_app.asar', './resources/app.asar')
+            shutil.rmtree('./app')
+            shutil.move('./original_app.asar', './app.asar')
         except FileNotFoundError as e:
             # assume things are fine for now i guess
             print('No changes to revert.')
@@ -165,10 +177,10 @@ def main():
                 window.applyAndWatchCSS('%s');
             """ % args.css.replace('\\', '\\\\'))
 
-            with open('./resources/app/cssInjection.js', 'w') as f:
+            with open('./app/cssInjection.js', 'w') as f:
                 f.write(css_injection_script)
 
-            css_injection_script_path = os.path.abspath('./resources/app/cssInjection.js').replace('\\', '\\\\')
+            css_injection_script_path = os.path.abspath('./app/cssInjection.js').replace('\\', '\\\\')
 
             css_reload_script = textwrap.dedent("""\
                 mainWindow.webContents.on('dom-ready', function () {
@@ -178,12 +190,12 @@ def main():
                 });
             """ % css_injection_script_path)
 
-            with open('./resources/app/index.js', 'r') as f:
+            with open('./app/index.js', 'r') as f:
                 entire_thing = f.read()
 
             entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
-            with open('./resources/app/index.js', 'w') as f:
+            with open('./app/index.js', 'w') as f:
                 f.write(entire_thing)
 
             print(
