@@ -15,7 +15,8 @@ DiscordProcess = namedtuple('DiscordProcess', 'path exe processes')
 
 def discord_process_terminate(self):
     for process in self.processes:
-        process.terminate()
+        # terrible
+        process.kill()
 
 def discord_process_launch(self):
     with open(os.devnull, 'w') as f:
@@ -139,6 +140,10 @@ def main():
             print('Reverted changes, no more CSS hot-reload :(')
     else:
         if extract_asar():
+
+            if sys.platform.startswith('linux'):
+                os.chdir('./app')
+
             if not os.path.exists(args.css):
                 with open(args.css, 'w') as f:
                     f.write('/* put your custom css here. */\n')
