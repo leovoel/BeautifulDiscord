@@ -7,20 +7,40 @@ Simple Python script that adds CSS hot-reload to Discord.
 
 ## Usage
 
+Just invoke the script when installed. If you don't pass the `--css` flag, the stylesheet
+will be placed wherever the Discord app resources are found, which is not a very convenient
+location.
+
 ```
-$ beautifuldiscord
+$ beautifuldiscord --css C:\mystuff\myown.css
 0: Found DiscordPTB.exe
 1: Found DiscordCanary.exe
 Discord executable to use (number): 1
 
 Done!
 
-You may now edit your C:\Users\leovoel\AppData\Local\DiscordCanary\app-0.0.146\discord-custom.css file,
+You may now edit your C:\mystuff\my.css file,
 which will be reloaded whenever it's saved.
 
 Relaunching Discord now...
 $
 ```
+
+Pass the `--revert` flag to remove the extracted `app.asar` (it's the `resources/app` folder)
+and rename `original_app.asar` to `app.asar`. You can also do this manually if your Discord
+install gets screwed up.
+
+```
+$ beautifuldiscord --revert
+0: Found DiscordPTB.exe
+1: Found DiscordCanary.exe
+Discord executable to use (number): 1
+Reverted changes, no more CSS hot-reload :(
+$
+```
+
+You can also run it as a package - i.e. `python3 -m beautifuldiscord` - if somehow you cannot
+install it as a script that you can run from anywhere.
 
 ## Installing
 
