@@ -43,10 +43,9 @@ Discord has to be open for this to work. When this tool is ran,
 Discord will close and then be relaunched when the tool completes.
 """
     parser = argparse.ArgumentParser(description=description.strip())
-    parser.add_argument('--css', metavar='file', help='Location of the CSS file to watch', default='./discord-custom.css')
+    parser.add_argument('--css', metavar='file', help='Location of the CSS file to watch')
     parser.add_argument('--revert', action='store_true', help='Reverts any changes made to Discord (does not delete CSS)')
     args = parser.parse_args()
-
     return args
 
 def discord_process():
@@ -117,6 +116,11 @@ def main():
     except Exception as e:
         print(str(e))
         return
+
+    if args.css:
+        args.css = os.path.abspath(args.css)
+    else:
+        args.css = os.path.join(discord.resources_path, 'discord-custom.css')
 
     os.chdir(discord.resources_path)
 
