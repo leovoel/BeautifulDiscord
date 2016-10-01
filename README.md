@@ -5,6 +5,18 @@ Simple Python script that adds CSS hot-reload to Discord.
 
 ![demo gif](http://i.imgur.com/xq4HS5f.gif)
 
+## Motivation
+
+I wanted custom CSS injection for Discord, with no JavaScript add-ons or anything.
+That's BeautifulDiscord.
+
+If you want JS, you can either:
+- Use [BetterDiscord](https://github.com/Jiiks/BetterDiscordApp)
+- Make your own thing!
+
+You could also fork this repo and add it, it's not that big of a stretch.
+I just didn't add it because it's not what I want to do here.
+
 ## Usage
 
 Just invoke the script when installed. If you don't pass the `--css` flag, the stylesheet
