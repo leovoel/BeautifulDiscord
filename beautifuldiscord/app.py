@@ -140,10 +140,6 @@ def main():
             print('Reverted changes, no more CSS hot-reload :(')
     else:
         if extract_asar():
-
-            if sys.platform.startswith('linux'):
-                os.chdir('./app')
-
             if not os.path.exists(args.css):
                 with open(args.css, 'w') as f:
                     f.write('/* put your custom css here. */\n')
