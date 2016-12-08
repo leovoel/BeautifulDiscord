@@ -23,6 +23,11 @@ Just invoke the script when installed. If you don't pass the `--css` flag, the s
 will be placed wherever the Discord app resources are found, which is not a very convenient
 location.
 
+**NOTE:** Discord has to be running for this to work in first place.
+The script works by scanning the active processes and looking for the Discord ones.
+
+(yes, this also means you can fool the program into trying to apply this to some random program named Discord)
+
 ```
 $ beautifuldiscord --css C:\mystuff\myown.css
 0: Found DiscordPTB.exe
@@ -31,7 +36,7 @@ Discord executable to use (number): 1
 
 Done!
 
-You may now edit your C:\mystuff\my.css file,
+You may now edit your C:\mystuff\myown.css file,
 which will be reloaded whenever it's saved.
 
 Relaunching Discord now...
