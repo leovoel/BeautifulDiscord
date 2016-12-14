@@ -198,6 +198,7 @@ def main():
                 entire_thing = f.read()
 
             entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
+            entire_thing = entire_thing.replace("\nmain();", "\napp.commandLine.appendSwitch('--enable-experimental-web-platform-features');main();")
 
             with open('./app/index.js', 'w') as f:
                 f.write(entire_thing)
