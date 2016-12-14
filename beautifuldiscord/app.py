@@ -139,6 +139,8 @@ CSS files must have the ".css" extension.
 """
     parser = argparse.ArgumentParser(description=description.strip())
     parser.add_argument('--css', metavar='file_or_dir', help='Location of the file or directory to watch')
+    parser.add_argument('--enable_backdrop',  action='store_true', help='Enables support for CSS backdrop filters.')
+    parser.add_argument('--enable_transparency',  action='store_true', help='Enables transparency in the main window.')
     parser.add_argument('--revert', action='store_true', help='Reverts any changes made to Discord (does not delete CSS)')
     args = parser.parse_args()
     return args
@@ -335,6 +337,10 @@ def main():
     # yikes
     to_write = entire_thing[:index] + css_reload_script.encode('utf-8') + entire_thing[index:]
     to_write = to_write.replace(b'nodeIntegration: false', b'nodeIntegration: true', 1)
+    if args.enable_backdrop
+        to_write = to_write.replace(b'blinkFeatures: "EnumerateDevices,AudioOutputDevices"', b'blinkFeatures: "EnumerateDevices,AudioOutputDevices,CSSBackdropFilter"', 1)
+    if args.enable_transparency
+        to_write = to_write.replace(b'transparent: false"', b'transparent: true"', 1)
 
     with open(discord.script_file, 'wb') as f:
         f.write(to_write)
