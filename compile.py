@@ -16,10 +16,10 @@ import argparse
 script_path = posixpath.normpath(posixpath.dirname(posixpath.realpath(__file__))).replace('\\', '/')
 
 # backport of shlex.quote for <3.3
-_find_unsafe = re.compile(r'[^\w@%+=:,./-]', re.ASCII).search
+_find_unsafe = re.compile(r'[^\w@%+=:,./-]').search
 
 def quote(s):
-    """Return a shell-escaped version of the string *s*."""=
+    """Return a shell-escaped version of the string *s*."""
     if not s:
         return "''"
 
