@@ -5,29 +5,32 @@ import struct
 import shutil
 
 
-def align_int(i, alignment):
-    """Rounds up `i` to the next multiple of `alignment`."""
-    return i + (alignment - (i % alignment)) % alignment
+def round_up(i, m):
+    """Rounds up ``i`` to the next multiple of ``m``.
+
+    ``m`` is assumed to be a power of two.
+    """
+    return (i + m - 1) & ~(m - 1)
 
 
 class Asar:
 
     """Represents an asar file.
 
-    You probably want to use the ``Asar.open`` or ``Asar.from_path``
+    You probably want to use the :meth:`.open` or :meth:`.from_path`
     class methods instead of creating an instance of this class.
 
     Attributes
     ----------
-    path: str
+    path : str
         Path of this asar file on disk.
-        If ``Asar.from_path`` is used, this is just
+        If :meth:`.from_path` is used, this is just
         the path given to it.
-    fp: File-like object
+    fp : File-like object
         Contains the data for this asar file.
-    header: dict
+    header : dict
         Dictionary used for random file access.
-    base_offset: int
+    base_offset : int
         Indicates where the asar file header ends.
     """
 
@@ -41,7 +44,7 @@ class Asar:
     def open(cls, path):
         """Decodes the asar file from the given ``path``.
 
-        You should probably use the context manager interface here,
+        You should use the context manager interface here,
         to automatically close the file object when you're done with it, i.e.
 
         .. code-block:: python
@@ -51,7 +54,7 @@ class Asar:
 
         Parameters
         ----------
-        path: str
+        path : str
             Path of the file to be decoded.
         """
         fp = open(path, 'rb')
@@ -66,7 +69,7 @@ class Asar:
             path=path,
             fp=fp,
             header=json.loads(header_json),
-            base_offset=align_int(16 + header_string_size, 4)
+            base_offset=round_up(16 + header_string_size, 4)
         )
 
     @classmethod
@@ -74,7 +77,7 @@ class Asar:
         """Creates an asar file using the given ``path``.
         
         When this is used, the ``fp`` attribute of the returned instance
-        will be a ``io.BytesIO`` object, so it's not written to a file.
+        will be a :class:`io.BytesIO` object, so it's not written to a file.
         You have to do something like:
 
         .. code-block:: python
@@ -84,9 +87,11 @@ class Asar:
                     a.fp.seek(0) # just making sure we're at the start of the file
                     f.write(a.fp.read())
 
+        You cannot exclude files/folders from being packed yet.
+
         Parameters
         ----------
-        path: str
+        path : str
             Path to walk into, recursively, and pack
             into an asar file.
         """
@@ -115,14 +120,14 @@ class Asar:
 
             return result
 
-        header = _folder_to_dict(path)
+        header = _path_to_dict(path)
         header_json = json.dumps(header, sort_keys=True, separators=(',', ':')).encode('utf-8')
 
         # TODO: using known constants here for now (laziness)...
         #       we likely need to calc these, but as far as discord goes we haven't needed it.
         header_string_size = len(header_json)
         data_size = 4 # uint32 size
-        aligned_size = align_int(header_string_size, data_size)
+        aligned_size = round_up(header_string_size, data_size)
         header_size = aligned_size + 8
         header_object_size = aligned_size + data_size
 
@@ -139,11 +144,53 @@ class Asar:
             path=path,
             fp=fp,
             header=header,
-            base_offset=align_int(16 + header_string_size, 4)
+            base_offset=round_up(16 + header_string_size, 4)
         )
 
-    def _copy_extracted(self, source, destination):
-        unpacked_dir = self.filename + '.unpacked'
+    def _copy_unpacked_file(self, source, destination):
+        """Copies an unpacked file to where the asar is extracted to.
+
+        An example:
+
+            .
+            ├── test.asar
+            └── test.asar.unpacked
+                ├── abcd.png
+                ├── efgh.jpg
+                └── test_subdir
+                    └── xyz.wav
+
+        If we are extracting ``test.asar`` to a folder called ``test_extracted``,
+        not only the files concatenated in the asar will go there, but also
+        the ones inside the ``*.unpacked`` folder too.
+
+        That is, after extraction, the previous example will look like this:
+
+            .
+            ├── test.asar
+            ├── test.asar.unpacked
+            |   └── ...
+            └── test_extracted
+                ├── whatever_was_inside_the_asar.js
+                ├── junk.js
+                ├── abcd.png
+                ├── efgh.jpg
+                └── test_subdir
+                    └── xyz.wav
+
+        In the asar header, they will show up without an offset, and ``"unpacked": true``.
+
+        Currently, if the expected directory doesn't already exist (or the file isn't there),
+        a message is printed to stdout. It could be logged in a smarter way but that's a TODO.
+
+        Parameters
+        ----------
+        source : str
+            Path of the file to locate and copy
+        destination : str
+            Destination folder to copy file into
+        """
+        unpacked_dir = self.path + '.unpacked'
         if not os.path.isdir(unpacked_dir):
             print("Couldn't copy file {}, no extracted directory".format(source))
             return
@@ -157,8 +204,25 @@ class Asar:
         shutil.copyfile(src, dest)
 
     def _extract_file(self, source, info, destination):
+        """Locates and writes to disk a given file in the asar archive.
+
+        Parameters
+        ----------
+        source : str
+            Path of the file to write to disk
+        info : dict
+            Contains offset and size if applicable.
+            If offset is not given, the file is assumed to be
+            sitting outside of the asar, unpacked.
+        destination : str
+            Destination folder to write file into
+
+        See Also
+        --------
+        :meth:`._copy_unpacked_file`
+        """
         if 'offset' not in info:
-            self._copy_extracted(source, destination)
+            self._copy_unpacked_file(source, destination)
             return
 
         self.fp.seek(self.base_offset + int(info['offset']))
@@ -169,6 +233,21 @@ class Asar:
             f.write(r)
 
     def _extract_directory(self, source, files, destination):
+        """Extracts all the files in a given directory.
+
+        If a sub-directory is found, this calls itself as necessary.
+
+        Parameters
+        ----------
+        source : str
+            Path of the directory
+        files : dict
+            Maps a file/folder name to another dictionary,
+            containing either file information,
+            or more files.
+        destination : str
+            Where the files in this folder should go to
+        """
         dest = os.path.normcase(os.path.join(destination, source))
 
         if not os.path.exists(dest):
@@ -188,7 +267,7 @@ class Asar:
     
         Parameters
         ----------
-        path: str
+        path : str
             Destination of extracted asar file.
         """
         if os.path.exists(path):
