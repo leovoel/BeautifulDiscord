@@ -12,6 +12,7 @@
 #include "platform.hpp"
 
 #include <boost/filesystem.hpp>
+#include <boost/system.hpp>
 #include <vector>
 #include <string>
 #include <utility>
@@ -133,7 +134,7 @@ struct process_impl {
 
     void send_signal(id_type pid, int sig) {
         if(pid != 0) {
-            if(kill(pid, sig) == -1) {
+            if(::kill(pid, sig) == -1) {
                 throw process_error("could not send this signal to the process");
             }
         }
@@ -149,7 +150,12 @@ struct process_impl {
 
     fs::path exe(id_type pid) {
 #if BD_LINUX
-        return fs::read_symlink(fs::path("/proc") / std::to_string(pid) / fs::path("exe"));
+        boost::system::error_code ec;
+        fs::path ret = fs::read_symlink(fs::path("/proc") / std::to_string(pid) / fs::path("exe"), ec);
+        if(ec) {
+            throw process_error("could not fetch process executable name");
+        }
+        return ret;
 #elif BD_OSX
         char buf[PATH_MAX];
         int ret = proc_pidpath(pid, &buf, sizeof(buf));
@@ -160,7 +166,7 @@ struct process_impl {
         return { buf };
 #endif
     }
-}
+};
 #endif
 
 struct process {
@@ -269,7 +275,13 @@ private:
 
 #if BD_LINUX
 struct process_state {
-    process_state(): begin(fs::path("/proc")) {}
+    process_state() {
+        boost::system::error_code ec;
+        begin = fs::directory_iterator(fs::path("/proc"), ec);
+        if(ec) {
+            throw process_error("cannot retrieve a list of processes.");
+        }
+    }
 
     void next() {
         for(; begin != end; ++begin) {
