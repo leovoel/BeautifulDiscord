@@ -46,6 +46,7 @@
 
 #if BD_OSX
 #include <sys/syslimits.h>
+#include <sys/proc_info.h>
 #include <libproc.h>
 #endif
 
@@ -157,7 +158,7 @@ struct process_impl {
         }
         return ret;
 #elif BD_OSX
-        char buf[PATH_MAX];
+        char buf[PROC_PIDPATHINFO_MAXSIZE] = {0};
         int ret = proc_pidpath(pid, &buf, sizeof(buf));
         if(ret == 0) {
             throw process_error("could not fetch process executable name");
@@ -317,6 +318,59 @@ private:
     pid_t current_id;
 };
 #endif // linux
+
+#if BD_OSX
+struct process_state {
+public:
+    process_state() {
+        int ret = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
+        if(ret <= 0) {
+            throw process_error("cannot retrieve a list of processes.");
+        }
+
+        process_count = ret;
+
+        if(proc_listpids(PROC_ALL_PIDS, 0, pids, sizeof(pids)) <= 0) {
+            throw process_error("cannot retrieve a list of processes.");
+        }
+
+        // find acceptable position
+        for(; index < process_count; ++index) {
+            if(pids[index] != 0) {
+                break;
+            }
+        }
+    }
+
+    void next() {
+        do {
+            ++index;
+            if(pids[index] != 0) {
+                break;
+            }
+        }
+        while(index < process_count);
+    }
+
+    bool compare(const process_state* other) const {
+        // check if we're doing it == end
+        if(other == nullptr) {
+            return index >= process_count;
+        }
+        // we're not so
+        return index == other->index;
+    }
+
+    process get() {
+        return { pids[index] };
+    }
+private:
+    pid_t pids[1024];
+    unsigned process_count;
+    unsigned index = 0;
+
+};
+#endif // OS X
 
 using process_iterator = state_iterator<process_state>;
 
