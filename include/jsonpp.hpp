@@ -1134,8 +1134,8 @@ inline bool operator!=(const value& lhs, const value& rhs) JSONPP_NOEXCEPT {
     return !(lhs == rhs);
 }
 
-template<typename OStream>
-inline OStream& dump(OStream& out, const value& val, format_options opt);
+// template<typename OStream>
+// inline OStream& dump(OStream& out, const value& val, format_options opt);
 
 using array  = value::array;
 using object = value::object;
