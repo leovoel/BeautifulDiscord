@@ -12,7 +12,7 @@
 #include "platform.hpp"
 
 #include <boost/filesystem.hpp>
-#include <boost/system.hpp>
+#include <boost/system/error_code.hpp>
 #include <vector>
 #include <string>
 #include <utility>
@@ -284,27 +284,27 @@ struct process_state {
     }
 
     void next() {
-        for(; begin != end; ++begin) {
-            try {
-                auto p = begin->string();
-                std::string::size_type pos;
-                current_id = static_cast<pid_t>(std::stoi(p, &pos));
+        do {
+            auto&& p = begin->path().filename().string();
 
-                if(pos != p.size()) {
-                    continue;
-                }
+            try {
+                current_id = static_cast<pid_t>(std::stoi(p));
             }
             catch(...) {
+                ++begin;
                 continue;
             }
+            ++begin;
+            break;
         }
+        while(begin != end);
     }
 
     bool compare(const process_state* other) const noexcept {
         if(other == nullptr) {
             return begin == end;
         }
-        return begin == other.begin;
+        return begin == other->begin;
     }
 
     process get() {
