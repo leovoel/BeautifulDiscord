@@ -328,7 +328,7 @@ public:
             throw process_error("cannot retrieve a list of processes.");
         }
 
-        process_count = ret;
+        process_count = ret / sizeof(int);
 
         if(proc_listpids(PROC_ALL_PIDS, 0, pids, sizeof(pids)) <= 0) {
             throw process_error("cannot retrieve a list of processes.");
