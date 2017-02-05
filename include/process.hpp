@@ -71,12 +71,12 @@ struct process_impl {
     using id_type = DWORD;
 
     fs::path exe(id_type pid) {
-        handle_ptr handle{OpenProcess(PROCESS_QUERY_INFORMATION, false, pid)};
+        handle_ptr handle{OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)};
         if(handle == nullptr) {
             throw process_error("could not fetch executable name for process");
         }
         wchar_t r[MAX_PATH];
-        DWORD ret = GetProcessImageFileNameW(handle.get(), r, MAX_PATH);
+        DWORD ret = GetModuleFileNameExW(handle.get(), nullptr, r, MAX_PATH);
         if(ret == 0) {
             throw process_error("could not fetch executable name for process");
         }
