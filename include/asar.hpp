@@ -103,7 +103,7 @@ private:
         in.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
 
         auto dest_path = (dest / source).string();
-        std::ofstream out(dest_path);
+        std::ofstream out(dest_path, std::ios::binary);
         out.write(reinterpret_cast<char*>(bytes.data()), bytes.size());
     }
 };
