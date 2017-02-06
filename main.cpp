@@ -30,7 +30,7 @@ struct discord_process {
 
     void launch() {
 #if BD_POSIX
-        auto cmd = '"' + exe.string() + "\" &";
+        auto cmd = '"' + exe.string() + "\" > /dev/null 2>&1 &";
 #else
         auto cmd = "start /b cmd /c call \"" + exe.string() + "\" >NUL 2>&1";
 #endif
@@ -54,12 +54,16 @@ struct discord_process {
     }
 
     void terminate() {
+        std::sort(processes.begin(), processes.end(), [](const bd::process& lhs, const bd::process& rhs) {
+            return lhs.id < rhs.id;
+        });
+
         for(auto&& p : processes) {
             try {
                 p.kill();
             }
-            catch(...) {
-                std::cerr << "warning: could not terminate PID " << p.id << '\n';
+            catch(const bd::process_error& e) {
+                std::cerr << "warning: could not terminate PID " << p.id << ": " << e.what() << '\n';
             }
         }
     }
@@ -239,6 +243,7 @@ void extract_asar() {
     }
     catch(const std::exception& e) {
         std::cout << "warning: app.asar not found\n";
+        return;
     }
 
     fs::rename("app.asar", "original_app.asar");
