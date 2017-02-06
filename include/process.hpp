@@ -42,6 +42,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <cerrno>
+#include <cstring>
 #endif // POSIX
 
 #if BD_OSX
@@ -136,7 +138,14 @@ struct process_impl {
     void send_signal(id_type pid, int sig) {
         if(pid != 0) {
             if(::kill(pid, sig) == -1) {
-                throw process_error("could not send this signal to the process");
+                if(errno == ESRCH) {
+                    // discard this one since the process was already terminated
+                    errno = 0;
+                    return;
+                }
+                const char* data = strerror(errno);
+                errno = 0;
+                throw process_error(data);
             }
         }
     }
