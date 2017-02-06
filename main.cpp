@@ -1,6 +1,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/system/system_error.hpp>
 #include <process.hpp>
 #include <asar.hpp>
 #include <iostream>
@@ -58,7 +59,7 @@ struct discord_process {
                 p.kill();
             }
             catch(...) {
-                std::cerr << "Could not terminate PID " << p.id << '\n';
+                std::cerr << "warning: could not terminate PID " << p.id << '\n';
             }
         }
     }
@@ -181,10 +182,11 @@ discord_process get_discord() {
 
     if(executables.size() == 1) {
         auto&& ret = executables.back();
-        std::cout << "found " << ret.filename << '\n';
+        std::cout << "info: found " << ret.filename << '\n';
         return ret;
     }
 
+    std::cout << "info: found " << executables.size() << " different versions of discord\n";
     for(unsigned i = 0; i < executables.size(); ++i) {
         std::cout << i << ": found " << executables[i].filename << '\n';
     }
@@ -230,6 +232,10 @@ void extract_asar() {
             fs::remove_all("app/", ec);
             a.extract("app/");
         }
+    }
+    catch(const boost::system::system_error& e) {
+        std::cerr << "error: " << e.what() << '\n';
+        std::exit(EXIT_FAILURE);
     }
     catch(const std::exception& e) {
         std::cout << "warning: app.asar not found\n";
