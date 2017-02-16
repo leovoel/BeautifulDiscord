@@ -21,6 +21,13 @@ void replace(std::string& str, const std::string& from, const std::string& to) {
     str.replace(pos, from.length(), to);
 }
 
+void pause_windows() noexcept {
+#if BD_WINDOWS
+    std::cout << "you may now close the window...\n";
+    std::cin.ignore(1000, '\n');
+#endif
+}
+
 struct discord_process {
     std::vector<bd::process> processes;
     std::string filename;
@@ -239,6 +246,7 @@ void extract_asar() {
     }
     catch(const boost::system::system_error& e) {
         std::cerr << "error: " << e.what() << '\n';
+        pause_windows();
         std::exit(EXIT_FAILURE);
     }
     catch(const std::exception& e) {
@@ -367,10 +375,12 @@ int main(int argc, char** argv) {
 
         std::cout << "relaunching discord now...\n";
         discord.launch();
+        pause_windows();
         return EXIT_SUCCESS;
     }
     catch(const std::exception& e) {
         std::cerr << "error: " << e.what() << std::endl;
+        pause_windows();
         return EXIT_FAILURE;
     }
 }
