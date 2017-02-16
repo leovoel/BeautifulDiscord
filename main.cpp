@@ -345,6 +345,7 @@ int main(int argc, char** argv) {
         args.parse(argc, argv);
 
         auto discord = get_discord();
+        auto current_dir = fs::current_path();
         auto resources = discord.resources();
 
         fs::current_path(resources);
@@ -355,7 +356,7 @@ int main(int argc, char** argv) {
         }
         else {
             if(args.css.empty()) {
-                args.css = resources / "discord-custom.css";
+                args.css = current_dir / "discord-custom.css";
             }
 
             args.css = fs::weakly_canonical(args.css);
