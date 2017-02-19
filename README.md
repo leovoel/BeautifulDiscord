@@ -17,6 +17,25 @@ If you want JS, you can either:
 You could also fork this repo and add it, it's not that big of a stretch.
 I just didn't add it because it's not what I want to do here.
 
+## Installing
+
+If you're on OS X or Windows the binaries are already provided for you in the [releases][ghrel] page. Just download the archive and extract it to get the program.
+
+To compile it yourself, you can do the following:
+
+```
+$ python compile.py
+```
+
+This will create a `beautiful_discord` executable for you to use.
+
+[ghrel]: https://github.com/leovoel/BeautifulDiscord/releases
+
+## Requirements
+
+- A C++14 capable compiler (GCC 6.1 or higher was tested).
+- Boost.Filesystem (which depends on Boost.System)
+
 ## Usage
 
 Just invoke the program when installed. If you don't pass the `--css` flag, the stylesheet
@@ -54,19 +73,6 @@ Discord executable to use (number): 1
 Reverted changes, no more CSS hot-reload :(
 $
 ```
-
-## Compiling
-
-```
-$ python compile.py
-```
-
-This will create a `beautiful_discord` executable for you to use.
-
-## Requirements
-
-- A C++14 capable compiler (GCC 6.1 or higher was tested).
-- Boost.Filesystem (which depends on Boost.System)
 
 ## Themes
 
