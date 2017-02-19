@@ -1,3 +1,6 @@
 *.pyc
 *.buildinfo
 *.egg-info
+*.exe
+*.o
+*.dll

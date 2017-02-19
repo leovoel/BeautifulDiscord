@@ -1,7 +1,7 @@
 BeautifulDiscord
 ================
 
-Simple Python script that adds CSS hot-reload to Discord.
+Simple program that adds CSS hot-reload to Discord.
 
 ![demo gif](http://i.imgur.com/xq4HS5f.gif)
 
@@ -19,17 +19,16 @@ I just didn't add it because it's not what I want to do here.
 
 ## Usage
 
-Just invoke the script when installed. If you don't pass the `--css` flag, the stylesheet
-will be placed wherever the Discord app resources are found, which is not a very convenient
-location.
+Just invoke the program when installed. If you don't pass the `--css` flag, the stylesheet
+will be placed wherever the program is located.
 
 **NOTE:** Discord has to be running for this to work in first place.
-The script works by scanning the active processes and looking for the Discord ones.
+The program works by scanning the active processes and looking for the Discord ones.
 
 (yes, this also means you can fool the program into trying to apply this to some random program named Discord)
 
 ```
-$ beautifuldiscord --css C:\mystuff\myown.css
+$ beautiful_discord --css C:\mystuff\myown.css
 0: Found DiscordPTB.exe
 1: Found DiscordCanary.exe
 Discord executable to use (number): 1
@@ -48,7 +47,7 @@ and rename `original_app.asar` to `app.asar`. You can also do this manually if y
 install gets screwed up.
 
 ```
-$ beautifuldiscord --revert
+$ beautiful_discord --revert
 0: Found DiscordPTB.exe
 1: Found DiscordCanary.exe
 Discord executable to use (number): 1
@@ -56,23 +55,18 @@ Reverted changes, no more CSS hot-reload :(
 $
 ```
 
-You can also run it as a package - i.e. `python3 -m beautifuldiscord` - if somehow you cannot
-install it as a script that you can run from anywhere.
-
-## Installing
+## Compiling
 
 ```
-python3 -m pip install -U https://github.com/leovoel/BeautifulDiscord/archive/master.zip
+$ python compile.py
 ```
 
-Usage of a virtual environment is recommended, to not pollute your global package space.
+This will create a `beautiful_discord` executable for you to use.
 
 ## Requirements
 
-- Python 3.x (no interest in compatibility with 2.x, untested on Python 3.x versions below 3.4)
-- `psutil` library: https://github.com/giampaolo/psutil
-
-Normally, `pip` should install any required dependencies.
+- A C++14 capable compiler (GCC 6.1 or higher was tested).
+- Boost.Filesystem (which depends on Boost.System)
 
 ## Themes
 
