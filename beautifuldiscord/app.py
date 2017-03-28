@@ -141,7 +141,7 @@ def main():
     else:
         if extract_asar():
             if not os.path.exists(args.css):
-                with open(args.css, 'w') as f:
+                with open(args.css, 'w', encoding='utf-8') as f:
                     f.write('/* put your custom css here. */\n')
 
             css_injection_script = textwrap.dedent("""\
@@ -181,7 +181,7 @@ def main():
                 window.applyAndWatchCSS('%s');
             """ % args.css.replace('\\', '\\\\'))
 
-            with open('./app/cssInjection.js', 'w') as f:
+            with open('./app/cssInjection.js', 'w', encoding='utf-8') as f:
                 f.write(css_injection_script)
 
             css_injection_script_path = os.path.abspath('./app/cssInjection.js').replace('\\', '\\\\')
@@ -194,12 +194,12 @@ def main():
                 });
             """ % css_injection_script_path)
 
-            with open('./app/index.js', 'r') as f:
+            with open('./app/index.js', 'r', encoding='utf-8') as f:
                 entire_thing = f.read()
 
             entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
-            with open('./app/index.js', 'w') as f:
+            with open('./app/index.js', 'w', encoding='utf-8') as f:
                 f.write(entire_thing)
 
             print(
