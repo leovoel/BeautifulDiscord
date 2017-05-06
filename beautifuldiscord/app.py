@@ -30,7 +30,7 @@ def discord_process_resources_path(self):
         # Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
         # So we need to fetch the folder based on the executable path.
         # Go two directories up and then go to Resources directory.
-        return os.path.join(self.path, '..', '..', 'Resources')
+        return os.path.abspath(os.path.join(self.path, '..', 'Resources'))
     return os.path.join(self.path, 'resources')
 
 DiscordProcess.terminate = discord_process_terminate
