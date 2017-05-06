@@ -51,10 +51,7 @@ struct discord_process {
         // where [EXE] is Discord Canary, Discord PTB, etc
         // Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
         // So we need to fetch the folder based on the executable path.
-        auto filename = exe.filename();
-        auto _exe = filename;
-        filename.replace_extension(".app");
-        return fs::path("/Applications") / filename / "Contents/Resources";
+        return exe.parent_path().parent_path() / "Resources";
 #else
         return exe.parent_path() / "resources";
 #endif
