@@ -124,7 +124,7 @@ def main():
     else:
         args.css = os.path.join(discord.resources_path, 'discord-custom.css')
 
-    os.chdir(discord.resources_path)
+    os.chdir(r, discord.resources_path)
 
     args.css = os.path.abspath(args.css)
 
