@@ -74,14 +74,6 @@ Usage of a virtual environment is recommended, to not pollute your global packag
 
 Normally, `pip` should install any required dependencies.
 
-## Themes
-
-Some people have started a theming community over here:
-https://github.com/beautiful-discord-community/resources/
-
-They have a Discord server as well:
-https://discord.gg/EDwd5wr
-
 ## More GIFs
 
 ![demo gif](http://i.imgur.com/w0bQOJ6.gif)
