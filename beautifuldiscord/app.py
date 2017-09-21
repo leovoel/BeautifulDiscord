@@ -43,9 +43,10 @@ Unpacks Discord and adds CSS hot-reloading.
 
 Discord has to be open for this to work. When this tool is ran,
 Discord will close and then be relaunched when the tool completes.
+CSS files must have the ".css" extension.
 """
     parser = argparse.ArgumentParser(description=description.strip())
-    parser.add_argument('--css', metavar='file', help='Location of the CSS file to watch')
+    parser.add_argument('--css', metavar='file_or_dir', help='Location of the file or directory to watch')
     parser.add_argument('--revert', action='store_true', help='Reverts any changes made to Discord (does not delete CSS)')
     args = parser.parse_args()
     return args
@@ -147,22 +148,52 @@ def main():
 
             css_injection_script = textwrap.dedent("""\
                 window._fs = require("fs");
+                window._path = require("path");
                 window._fileWatcher = null;
-                window._styleTag = null;
+                window._styleTag = {};
 
-                window.setupCSS = function(path) {
+                window.applyCSS = function(path, name) {
                   var customCSS = window._fs.readFileSync(path, "utf-8");
-                  if(window._styleTag === null) {
-                    window._styleTag = document.createElement("style");
-                    document.head.appendChild(window._styleTag);
+                  if (!window._styleTag.hasOwnProperty(name)) {
+                    window._styleTag[name] = document.createElement("style");
+                    document.head.appendChild(window._styleTag[name]);
                   }
-                  window._styleTag.innerHTML = customCSS;
+                  window._styleTag[name].innerHTML = customCSS;
+                }
+
+                window.clearCSS = function(name) {
+                  if (window._styleTag.hasOwnProperty(name)) {
+                    window._styleTag[name].innerHTML = "";
+                    window._styleTag[name].parentElement.removeChild(window._styleTag[name]);
+                    delete window._styleTag[name];
+                  }
+                }
+
+                window.watchCSS = function(path) {
+                  if (window._fs.lstatSync(path).isDirectory()) {
+                    files = window._fs.readdirSync(path);
+                    dirname = path;
+                  } else {
+                    files = [window._path.basename(path)];
+                    dirname = window._path.dirname(path);
+                  }
+
+                  for (var i = 0; i < files.length; i++) {
+                    var file = files[i];
+                    if (file.endsWith(".css")) {
+                      window.applyCSS(window._path.join(dirname, file), file)
+                    }
+                  }
+
                   if(window._fileWatcher === null) {
                     window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
                       function(eventType, filename) {
-                        if(eventType === "change") {
-                          var changed = window._fs.readFileSync(path, "utf-8");
-                          window._styleTag.innerHTML = changed;
+                        if (!filename.endsWith(".css")) return;
+                        path = window._path.join(dirname, filename);
+                        if (eventType === "rename" && !window._fs.existsSync(path)) {
+                          window.clearCSS(filename);
+                        } else {
+                          window.applyCSS(window._path.join(dirname, filename), filename);
                         }
                       }
                     );
@@ -170,13 +201,17 @@ def main():
                 };
 
                 window.tearDownCSS = function() {
-                  if(window._styleTag !== null) { window._styleTag.innerHTML = ""; }
+                  for (var key in window._styleTag) {
+                    if (window._styleTag.hasOwnProperty(key)) {
+                      window.clearCSS(key)
+                    }
+                  }
                   if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
                 };
 
                 window.applyAndWatchCSS = function(path) {
                   window.tearDownCSS();
-                  window.setupCSS(path);
+                  window.watchCSS(path);
                 };
 
                 window.applyAndWatchCSS('%s');
