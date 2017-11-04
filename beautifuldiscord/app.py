@@ -56,7 +56,7 @@ def discord_process():
     for proc in psutil.process_iter():
         try:
             (path, exe) = os.path.split(proc.exe())
-        except psutil.AccessDenied:
+        except (psutil.Error, OSError):
             pass
         else:
             if exe.startswith('Discord') and not exe.endswith('Helper'):
