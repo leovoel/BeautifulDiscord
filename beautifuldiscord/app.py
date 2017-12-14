@@ -262,7 +262,8 @@ def main():
 
     if to_write == entire_thing:
         # failed replace for some reason?
-        print('warning: dom-ready event not found')
+        print('warning: nothing was done.\n' \
+              'note: might be already applied or the dom-ready event was not found.')
         discord.launch()
         return
 
