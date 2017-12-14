@@ -149,8 +149,7 @@ def main():
 
     if args.revert:
         try:
-            shutil.rmtree('./app')
-            shutil.move('./original_app.asar', './app.asar')
+            shutil.move('./mainScreen.js.bak', './mainScreen.js')
         except FileNotFoundError as e:
             # assume things are fine for now i guess
             print('No changes to revert.')
@@ -251,6 +250,13 @@ def main():
 
     with open(discord.script_file, 'r', encoding='utf-8') as f:
         entire_thing = f.read()
+
+    # create a backup of the mainScreen file if it doesn't exist
+    # we don't want subsequent runs to overwrite this backup file
+    backup_file = discord.script_file + '.bak'
+    if not os.path.exists(backup_file):
+        # this will raise if an error happens
+        shutil.copy(discord.script_file, backup_file)
 
     to_write = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
