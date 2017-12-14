@@ -7,73 +7,71 @@ import textwrap
 import subprocess
 import psutil
 import sys
-from collections import namedtuple
-from beautifuldiscord.asar import Asar
 
+class DiscordProcess:
+    def __init__(self, path, exe):
+        self.path = path
+        self.exe = exe
+        self.processes = []
 
-DiscordProcess = namedtuple('DiscordProcess', 'path exe processes')
+    def terminate(self):
+        for process in self.processes:
+            # terrible
+            process.kill()
 
-def discord_process_terminate(self):
-    for process in self.processes:
-        # terrible
-        process.kill()
+    def launch(self):
+        with open(os.devnull, 'w') as f:
+            subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
 
-def discord_process_launch(self):
-    with open(os.devnull, 'w') as f:
-        subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
+    @property
+    def resources_path(self):
+        if sys.platform == 'darwin':
+            # OS X has a different resources path
+            # Application directory is under <[EXE].app/Contents/MacOS/[EXE]>
+            # where [EXE] is Discord Canary, Discord PTB, etc
+            # Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
+            # So we need to fetch the folder based on the executable path.
+            # Go two directories up and then go to Resources directory.
+            return os.path.abspath(os.path.join(self.path, '..', 'Resources'))
+        return os.path.join(self.path, 'resources')
 
-def discord_process_resources_path(self):
-    if sys.platform == 'darwin':
-        # OS X has a different resources path
-        # Application directory is under <[EXE].app/Contents/MacOS/[EXE]>
-        # where [EXE] is Discord Canary, Discord PTB, etc
-        # Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
-        # So we need to fetch the folder based on the executable path.
-        # Go two directories up and then go to Resources directory.
-        return os.path.abspath(os.path.join(self.path, '..', 'Resources'))
-    return os.path.join(self.path, 'resources')
+    @property
+    def script_file(self):
+        if sys.platform == 'win32':
+            # On Windows:
+            # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
+            # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core\app\mainScreen.js
+            # don't try this at home
+            path = os.path.split(self.path)
+            app_version = path[1].replace('app-', '')
+            discord_version = os.path.basename(path[0])
+            return os.path.expandvars(os.path.join('%AppData%',
+                                                   discord_version,
+                                                   app_version,
+                                                   r'modules\discord_desktop_core\app\mainScreen.js'))
+        elif sys.platform == 'darwin':
+            # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
+            # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
+            # After we obtain the Info.plist, we parse it for the `CFBundleVersion` key
+            # The actual path ends up being in ~/Application Support/<DiscordLower>/<version>/modules/...
+            import plistlib as plist
+            info = os.path.abspath(os.path.join(self.path, '..', 'Info.plist'))
+            with open(info, 'rb') as fp:
+                info = plist.load(fp)
 
-def discord_process_script_file(self):
-    if sys.platform == 'win32':
-        # On Windows:
-        # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
-        # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core\app\mainScreen.js
-        # don't try this at home
-        path = os.path.split(self.path)
-        app_version = path[1].replace('app-', '')
-        discord_version = os.path.basename(path[0])
-        return os.path.expandvars(os.path.join('%AppData%',
-                                               discord_version,
-                                               app_version,
-                                               r'modules\discord_desktop_core\app\mainScreen.js'))
-    elif sys.platform == 'darwin':
-        # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
-        # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
-        # After we obtain the Info.plist, we parse it for the `CFBundleVersion` key
-        # The actual path ends up being in ~/Application Support/<DiscordLower>/<version>/modules/...
-        import plistlib as plist
-        info = os.path.abspath(os.path.join(self.path, '..', 'Info.plist'))
-        with open(info, 'rb') as fp:
-            info = plist.load(fp)
+            app_version = info['CFBundleVersion']
+            discord_version = info['CFBundleName'].replace(' ', '').lower()
+            return os.path.expandhome(os.path.join('~/Application Support',
+                                                  discord_version,
+                                                  app_version,
+                                                  'modules/discord_desktop_core/app/mainScreen.js'))
+        else:
+            # TODO: linux support
+            raise RuntimeError("Unsupported operating system.")
 
-        app_version = info['CFBundleVersion']
-        discord_version = info['CFBundleName'].replace(' ', '').lower()
-        return os.path.expandhome(os.path.join('~/Application Support',
-                                              discord_version,
-                                              app_version,
-                                              'modules/discord_desktop_core/app/mainScreen.js'))
-    else:
-        # TODO: linux support
-        raise RuntimeError("Unsupported operating system.")
-
-def discord_process_script_path(self):
-    return os.path.dirname(self.script_file)
-
-DiscordProcess.terminate = discord_process_terminate
-DiscordProcess.launch = discord_process_launch
-DiscordProcess.script_file = property(discord_process_script_file)
-DiscordProcess.script_path = property(discord_process_script_path)
-DiscordProcess.resources_path = property(discord_process_resources_path)
+    @property
+    def script_path(self):
+        return os.path.dirname(self.script_file)
 
 def parse_args():
     description = """\
@@ -101,7 +99,7 @@ def discord_process():
                 entry = executables.get(exe)
 
                 if entry is None:
-                    entry = executables[exe] = DiscordProcess(path=path, exe=exe, processes=[])
+                    entry = executables[exe] = DiscordProcess(path=path, exe=exe)
 
                 entry.processes.append(proc)
 
