@@ -33,8 +33,46 @@ def discord_process_resources_path(self):
         return os.path.abspath(os.path.join(self.path, '..', 'Resources'))
     return os.path.join(self.path, 'resources')
 
+def discord_process_script_file(self):
+    if sys.platform == 'win32':
+        # On Windows:
+        # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
+        # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core\app\mainScreen.js
+        # don't try this at home
+        path = os.path.split(self.path)
+        app_version = path[1].replace('app-', '')
+        discord_version = os.path.basename(path[0])
+        return os.path.expandvars(os.path.join('%AppData%',
+                                               discord_version,
+                                               app_version,
+                                               r'modules\discord_desktop_core\app\mainScreen.js'))
+    elif sys.platform == 'darwin':
+        # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
+        # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
+        # After we obtain the Info.plist, we parse it for the `CFBundleVersion` key
+        # The actual path ends up being in ~/Application Support/<DiscordLower>/<version>/modules/...
+        import plistlib as plist
+        info = os.path.abspath(os.path.join(self.path, '..', 'Info.plist'))
+        with open(info, 'rb') as fp:
+            info = plist.load(fp)
+
+        app_version = info['CFBundleVersion']
+        discord_version = info['CFBundleName'].replace(' ', '').lower()
+        return os.path.expandhome(os.path.join('~/Application Support',
+                                              discord_version,
+                                              app_version,
+                                              'modules/discord_desktop_core/app/mainScreen.js'))
+    else:
+        # TODO: linux support
+        raise RuntimeError("Unsupported operating system.")
+
+def discord_process_script_path(self):
+    return os.path.dirname(self.script_file)
+
 DiscordProcess.terminate = discord_process_terminate
 DiscordProcess.launch = discord_process_launch
+DiscordProcess.script_file = property(discord_process_script_file)
+DiscordProcess.script_path = property(discord_process_script_path)
 DiscordProcess.resources_path = property(discord_process_resources_path)
 
 def parse_args():
@@ -92,26 +130,6 @@ def discord_process():
                 key = lookup[index]
                 return executables[key]
 
-def extract_asar():
-    try:
-        with Asar.open('./app.asar') as a:
-            try:
-                a.extract('./app')
-            except FileExistsError:
-                answer = input('asar already extracted, overwrite? (Y/n): ')
-
-                if answer.lower().startswith('n'):
-                    print('Exiting.')
-                    return False
-
-                shutil.rmtree('./app')
-                a.extract('./app')
-
-        shutil.move('./app.asar', './original_app.asar')
-    except FileNotFoundError as e:
-        print('WARNING: app.asar not found')
-    return True
-
 def main():
     args = parse_args()
     try:
@@ -123,9 +141,9 @@ def main():
     if args.css:
         args.css = os.path.abspath(args.css)
     else:
-        args.css = os.path.join(discord.resources_path, 'discord-custom.css')
+        args.css = os.path.join(discord.script_path, 'discord-custom.css')
 
-    os.chdir(discord.resources_path)
+    os.chdir(discord.script_path)
 
     args.css = os.path.abspath(args.css)
 
@@ -140,110 +158,119 @@ def main():
             print('No changes to revert.')
         else:
             print('Reverted changes, no more CSS hot-reload :(')
-    else:
-        if extract_asar():
-            if not os.path.exists(args.css):
-                with open(args.css, 'w', encoding='utf-8') as f:
-                    f.write('/* put your custom css here. */\n')
 
-            css_injection_script = textwrap.dedent("""\
-                window._fs = require("fs");
-                window._path = require("path");
-                window._fileWatcher = null;
-                window._styleTag = {};
+        discord.launch()
+        return
 
-                window.applyCSS = function(path, name) {
-                  var customCSS = window._fs.readFileSync(path, "utf-8");
-                  if (!window._styleTag.hasOwnProperty(name)) {
-                    window._styleTag[name] = document.createElement("style");
-                    document.head.appendChild(window._styleTag[name]);
-                  }
-                  window._styleTag[name].innerHTML = customCSS;
+    if not os.path.exists(args.css):
+        with open(args.css, 'w', encoding='utf-8') as f:
+            f.write('/* put your custom css here. */\n')
+
+    css_injection_script = textwrap.dedent("""\
+        window._fs = require("fs");
+        window._path = require("path");
+        window._fileWatcher = null;
+        window._styleTag = {};
+
+        window.applyCSS = function(path, name) {
+          var customCSS = window._fs.readFileSync(path, "utf-8");
+          if (!window._styleTag.hasOwnProperty(name)) {
+            window._styleTag[name] = document.createElement("style");
+            document.head.appendChild(window._styleTag[name]);
+          }
+          window._styleTag[name].innerHTML = customCSS;
+        }
+
+        window.clearCSS = function(name) {
+          if (window._styleTag.hasOwnProperty(name)) {
+            window._styleTag[name].innerHTML = "";
+            window._styleTag[name].parentElement.removeChild(window._styleTag[name]);
+            delete window._styleTag[name];
+          }
+        }
+
+        window.watchCSS = function(path) {
+          if (window._fs.lstatSync(path).isDirectory()) {
+            files = window._fs.readdirSync(path);
+            dirname = path;
+          } else {
+            files = [window._path.basename(path)];
+            dirname = window._path.dirname(path);
+          }
+
+          for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            if (file.endsWith(".css")) {
+              window.applyCSS(window._path.join(dirname, file), file)
+            }
+          }
+
+          if(window._fileWatcher === null) {
+            window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
+              function(eventType, filename) {
+                if (!filename.endsWith(".css")) return;
+                path = window._path.join(dirname, filename);
+                if (eventType === "rename" && !window._fs.existsSync(path)) {
+                  window.clearCSS(filename);
+                } else {
+                  window.applyCSS(window._path.join(dirname, filename), filename);
                 }
+              }
+            );
+          }
+        };
 
-                window.clearCSS = function(name) {
-                  if (window._styleTag.hasOwnProperty(name)) {
-                    window._styleTag[name].innerHTML = "";
-                    window._styleTag[name].parentElement.removeChild(window._styleTag[name]);
-                    delete window._styleTag[name];
-                  }
-                }
+        window.tearDownCSS = function() {
+          for (var key in window._styleTag) {
+            if (window._styleTag.hasOwnProperty(key)) {
+              window.clearCSS(key)
+            }
+          }
+          if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
+        };
 
-                window.watchCSS = function(path) {
-                  if (window._fs.lstatSync(path).isDirectory()) {
-                    files = window._fs.readdirSync(path);
-                    dirname = path;
-                  } else {
-                    files = [window._path.basename(path)];
-                    dirname = window._path.dirname(path);
-                  }
+        window.applyAndWatchCSS = function(path) {
+          window.tearDownCSS();
+          window.watchCSS(path);
+        };
 
-                  for (var i = 0; i < files.length; i++) {
-                    var file = files[i];
-                    if (file.endsWith(".css")) {
-                      window.applyCSS(window._path.join(dirname, file), file)
-                    }
-                  }
+        window.applyAndWatchCSS('%s');
+    """ % args.css.replace('\\', '\\\\'))
 
-                  if(window._fileWatcher === null) {
-                    window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
-                      function(eventType, filename) {
-                        if (!filename.endsWith(".css")) return;
-                        path = window._path.join(dirname, filename);
-                        if (eventType === "rename" && !window._fs.existsSync(path)) {
-                          window.clearCSS(filename);
-                        } else {
-                          window.applyCSS(window._path.join(dirname, filename), filename);
-                        }
-                      }
-                    );
-                  }
-                };
+    with open('./cssInjection.js', 'w', encoding='utf-8') as f:
+        f.write(css_injection_script)
 
-                window.tearDownCSS = function() {
-                  for (var key in window._styleTag) {
-                    if (window._styleTag.hasOwnProperty(key)) {
-                      window.clearCSS(key)
-                    }
-                  }
-                  if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
-                };
+    css_injection_script_path = os.path.abspath('./cssInjection.js').replace('\\', '\\\\')
 
-                window.applyAndWatchCSS = function(path) {
-                  window.tearDownCSS();
-                  window.watchCSS(path);
-                };
+    css_reload_script = textwrap.dedent("""\
+        mainWindow.webContents.on('dom-ready', function () {
+          var _fs = require('fs');
+          mainWindow.webContents.executeJavaScript(
+            _fs.readFileSync('%s', 'utf-8')
+          );
+        });
+    """ % css_injection_script_path)
 
-                window.applyAndWatchCSS('%s');
-            """ % args.css.replace('\\', '\\\\'))
+    with open(discord.script_file, 'r', encoding='utf-8') as f:
+        entire_thing = f.read()
 
-            with open('./app/cssInjection.js', 'w', encoding='utf-8') as f:
-                f.write(css_injection_script)
+    to_write = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
 
-            css_injection_script_path = os.path.abspath('./app/cssInjection.js').replace('\\', '\\\\')
+    if to_write == entire_thing:
+        # failed replace for some reason?
+        print('warning: dom-ready event not found')
+        discord.launch()
+        return
 
-            css_reload_script = textwrap.dedent("""\
-                mainWindow.webContents.on('dom-ready', function () {
-                  mainWindow.webContents.executeJavaScript(
-                    _fs2.default.readFileSync('%s', 'utf-8')
-                  );
-                });
-            """ % css_injection_script_path)
+    with open(discord.script_file, 'w', encoding='utf-8') as f:
+        f.write(to_write)
 
-            with open('./app/index.js', 'r', encoding='utf-8') as f:
-                entire_thing = f.read()
-
-            entire_thing = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
-
-            with open('./app/index.js', 'w', encoding='utf-8') as f:
-                f.write(entire_thing)
-
-            print(
-                '\nDone!\n' +
-                '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
-                "which will be reloaded whenever it's saved.\n" +
-                '\nRelaunching Discord now...'
-            )
+    print(
+        '\nDone!\n' +
+        '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
+        "which will be reloaded whenever it's saved.\n" +
+        '\nRelaunching Discord now...'
+    )
 
     discord.launch()
 
