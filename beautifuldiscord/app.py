@@ -248,7 +248,7 @@ def main():
         });
     """ % css_injection_script_path)
 
-    with open(discord.script_file, 'r', encoding='utf-8') as f:
+    with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
 
     # create a backup of the mainScreen file if it doesn't exist
@@ -258,16 +258,19 @@ def main():
         # this will raise if an error happens
         shutil.copy(discord.script_file, backup_file)
 
-    to_write = entire_thing.replace("mainWindow.webContents.on('dom-ready', function () {});", css_reload_script)
+    index = entire_thing.index(b"mainWindow.on('blur'")
 
-    if to_write == entire_thing:
+    if index == -1:
         # failed replace for some reason?
         print('warning: nothing was done.\n' \
-              'note: might be already applied or the dom-ready event was not found.')
+              'note: blur event was not found for the injection point.')
         discord.launch()
         return
 
-    with open(discord.script_file, 'w', encoding='utf-8') as f:
+    # yikes
+    to_write = entire_thing[:index] + css_reload_script.encode('utf-8') + entire_thing[index:]
+
+    with open(discord.script_file, 'wb') as f:
         f.write(to_write)
 
     print(
