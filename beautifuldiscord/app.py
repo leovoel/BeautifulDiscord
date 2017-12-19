@@ -234,10 +234,12 @@ def main():
         window.applyAndWatchCSS('%s');
     """ % args.css.replace('\\', '\\\\'))
 
-    with open('./cssInjection.js', 'w', encoding='utf-8') as f:
+
+    css_injection_path = os.path.join(discord.path, 'cssInjection.js')
+    with open(css_injection_path, 'w', encoding='utf-8') as f:
         f.write(css_injection_script)
 
-    css_injection_script_path = os.path.abspath('./cssInjection.js').replace('\\', '\\\\')
+    css_injection_script_path = os.path.abspath(css_injection_path).replace('\\', '\\\\')
 
     css_reload_script = textwrap.dedent("""\
         mainWindow.webContents.on('dom-ready', function () {
