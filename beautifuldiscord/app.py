@@ -76,7 +76,7 @@ class DiscordProcess:
 
             versions_found = {}
             for subdirectory in os.listdir(config):
-                if not os.path.isdir(subdirectory):
+                if not os.path.isdir(os.path.join(config, subdirectory)):
                     continue
 
                 try:
