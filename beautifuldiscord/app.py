@@ -67,13 +67,36 @@ class DiscordProcess:
                                                   app_version,
                                                   'modules/discord_desktop_core'))
         else:
-            # TODO: linux support
-            raise RuntimeError("Unsupported operating system.")
+            # Discord is available typically on /opt/discord-canary directory
+            # The modules are under ~/.config/discordcanary/0.0.xx/modules/discord_desktop_core
+            # To get the version number we have to iterate over ~/.config/discordcanary and find the
+            # folder with the highest version number
+            discord_version = os.path.basename(self.path).replace('-', '')
+            config = os.path.expanduser(os.path.join('~/.config', discord_version))
+
+            versions_found = {}
+            for subdirectory in os.listdir(config):
+                if not os.path.isdir(subdirectory):
+                    continue
+
+                try:
+                    # versions are A.B.C
+                    version_info = tuple(int(x) for x in subdirectory.split('.'))
+                except Exception as e:
+                    # shucks
+                    continue
+                else:
+                    versions_found[subdirectory] = version_info
+
+            if len(versions_found) == 0:
+                raise RuntimeError('Could not find discord application version under "{}".'.format(config))
+
+            app_version = max(versions_found.items(), key=lambda t: t[1])
+            return os.path.join(config, app_version[0], 'modules', 'discord_desktop_core')
 
     @property
     def script_file(self):
         return os.path.join(self.script_path, 'core', 'app', 'mainScreen.js')
-
 
 def extract_asar():
     try:
