@@ -125,6 +125,7 @@ def repack_asar():
             with open('./core.asar', 'wb') as fp:
                 a.fp.seek(0)
                 fp.write(a.fp.read())
+        shutil.rmtree('./core')
     except Exception as e:
         print('ERROR: {0.__class__.__name__} {0}'.format(e))
 
