@@ -298,11 +298,13 @@ def main():
     """ % args.css.replace('\\', '\\\\'))
 
 
-    css_injection_path = os.path.join(discord.path, 'cssInjection.js')
-    with open(css_injection_path, 'w', encoding='utf-8') as f:
-        f.write(css_injection_script)
+    css_injection_path = os.path.expanduser(os.path.join('~', '.beautifuldiscord'))
+    if not os.path.exists(css_injection_path):
+        os.mkdir(css_injection_path)
 
-    css_injection_script_path = os.path.abspath(css_injection_path).replace('\\', '\\\\')
+    css_injection_file = os.path.abspath(os.path.join(css_injection_path, 'cssInjection.js'))
+    with open(css_injection_file, 'w', encoding='utf-8') as f:
+        f.write(css_injection_script)
 
     css_reload_script = textwrap.dedent("""\
         mainWindow.webContents.on('dom-ready', function () {
@@ -311,7 +313,7 @@ def main():
             _fs.readFileSync('%s', 'utf-8')
           );
         });
-    """ % css_injection_script_path)
+    """ % css_injection_file.replace('\\', '\\\\'))
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
