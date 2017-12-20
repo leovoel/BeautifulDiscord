@@ -7,6 +7,7 @@ import textwrap
 import subprocess
 import psutil
 import sys
+from beautifuldiscord.asar import Asar
 
 class DiscordProcess:
     def __init__(self, path, exe):
@@ -36,11 +37,11 @@ class DiscordProcess:
         return os.path.join(self.path, 'resources')
 
     @property
-    def script_file(self):
+    def script_path(self):
         if sys.platform == 'win32':
             # On Windows:
             # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
-            # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core\app\mainScreen.js
+            # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core
             # don't try this at home
             path = os.path.split(self.path)
             app_version = path[1].replace('app-', '')
@@ -48,7 +49,7 @@ class DiscordProcess:
             return os.path.expandvars(os.path.join('%AppData%',
                                                    discord_version,
                                                    app_version,
-                                                   r'modules\discord_desktop_core\app\mainScreen.js'))
+                                                   r'modules\discord_desktop_core'))
         elif sys.platform == 'darwin':
             # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
             # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
@@ -64,14 +65,45 @@ class DiscordProcess:
             return os.path.expanduser(os.path.join('~/Library/Application Support',
                                                   discord_version,
                                                   app_version,
-                                                  'modules/discord_desktop_core/app/mainScreen.js'))
+                                                  'modules/discord_desktop_core'))
         else:
             # TODO: linux support
             raise RuntimeError("Unsupported operating system.")
 
     @property
-    def script_path(self):
-        return os.path.dirname(self.script_file)
+    def script_file(self):
+        return os.path.join(self.script_path, 'core', 'app', 'mainScreen.js')
+
+
+def extract_asar():
+    try:
+        with Asar.open('./core.asar') as a:
+            try:
+                a.extract('./core')
+            except FileExistsError:
+                answer = input('asar already extracted, overwrite? (Y/n): ')
+
+                if answer.lower().startswith('n'):
+                    print('Exiting.')
+                    return False
+
+                shutil.rmtree('./core')
+                a.extract('./core')
+
+        shutil.move('./core.asar', './original_core.asar')
+    except FileNotFoundError as e:
+        print('WARNING: app.asar not found')
+
+    return True
+
+def repack_asar():
+    try:
+        with Asar.from_path('./core') as a:
+            with open('./core.asar', 'wb') as fp:
+                a.fp.seek(0)
+                fp.write(a.fp.read())
+    except Exception as e:
+        print('ERROR: {0.__class__.__name__} {0}'.format(e))
 
 def parse_args():
     description = """\
@@ -128,6 +160,18 @@ def discord_process():
                 key = lookup[index]
                 return executables[key]
 
+def revert_changes(discord):
+    try:
+        shutil.rmtree('./core')
+        shutil.move('./original_core.asar', './core.asar')
+    except FileNotFoundError as e:
+        # assume things are fine for now I guess
+        print('No changes to revert.')
+    else:
+        print('Reverted changes, no more CSS hot-reload :(')
+
+    discord.launch()
+
 def main():
     args = parse_args()
     try:
@@ -148,20 +192,15 @@ def main():
     discord.terminate()
 
     if args.revert:
-        try:
-            shutil.move('./mainScreen.js.bak', './mainScreen.js')
-        except FileNotFoundError as e:
-            # assume things are fine for now i guess
-            print('No changes to revert.')
-        else:
-            print('Reverted changes, no more CSS hot-reload :(')
-
-        discord.launch()
-        return
+        return revert_changes(discord)
 
     if not os.path.exists(args.css):
         with open(args.css, 'w', encoding='utf-8') as f:
             f.write('/* put your custom css here. */\n')
+
+    if not extract_asar():
+        discord.launch()
+        return
 
     css_injection_script = textwrap.dedent("""\
         window._fs = require("fs");
@@ -253,19 +292,13 @@ def main():
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
 
-    # create a backup of the mainScreen file if it doesn't exist
-    # we don't want subsequent runs to overwrite this backup file
-    backup_file = discord.script_file + '.bak'
-    if not os.path.exists(backup_file):
-        # this will raise if an error happens
-        shutil.copy(discord.script_file, backup_file)
-
     index = entire_thing.index(b"mainWindow.on('blur'")
 
     if index == -1:
         # failed replace for some reason?
         print('warning: nothing was done.\n' \
               'note: blur event was not found for the injection point.')
+        revert_changes(discord)
         discord.launch()
         return
 
@@ -274,6 +307,9 @@ def main():
 
     with open(discord.script_file, 'wb') as f:
         f.write(to_write)
+
+    # repack the asar so discord stops complaining
+    repack_asar()
 
     print(
         '\nDone!\n' +

@@ -75,13 +75,13 @@ class Asar:
     @classmethod
     def from_path(cls, path):
         """Creates an asar file using the given ``path``.
-        
+
         When this is used, the ``fp`` attribute of the returned instance
         will be a :class:`io.BytesIO` object, so it's not written to a file.
         You have to do something like:
 
         .. code-block:: python
-            
+
             with Asar.from_path('./something_dir') as a:
                 with open('./something.asar', 'wb') as f:
                     a.fp.seek(0) # just making sure we're at the start of the file
@@ -248,7 +248,7 @@ class Asar:
         destination : str
             Where the files in this folder should go to
         """
-        dest = os.path.normcase(os.path.join(destination, source))
+        dest = os.path.normpath(os.path.join(destination, source))
 
         if not os.path.exists(dest):
             os.makedirs(dest)
@@ -264,7 +264,7 @@ class Asar:
 
     def extract(self, path):
         """Extracts this asar file to ``path``.
-    
+
         Parameters
         ----------
         path : str
