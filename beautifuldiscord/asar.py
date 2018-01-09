@@ -1,6 +1,7 @@
 import io
 import os
 import json
+import errno
 import struct
 import shutil
 
@@ -105,6 +106,10 @@ class Asar:
             for f in os.scandir(path):
                 if os.path.isdir(f.path):
                     result['files'][f.name] = _path_to_dict(f.path)
+                elif f.is_symlink():
+                    result['files'][f.name] = {
+                        'link': os.path.realpath(f.name)
+                    }
                 else:
                     size = f.stat().st_size
 
@@ -232,6 +237,31 @@ class Asar:
         with open(dest, 'wb') as f:
             f.write(r)
 
+    def _extract_link(self, source, link, destination):
+        """Creates a symbolic link to a file we extracted (or will extract).
+
+        Parameters
+        ----------
+        source : str
+            Path of the symlink to create
+        link : str
+            Path of the file the symlink should point to
+        destination : str
+            Destination folder to create the symlink into
+        """
+        dest_filename = os.path.normpath(os.path.join(destination, source))
+        link_src_path = os.path.dirname(os.path.join(destination, link))
+        link_to = os.path.join(link_src_path, os.path.basename(link))
+
+        try:
+            os.symlink(link_to, dest_filename)
+        except OSError as e:
+            if e.errno == errno.EXIST:
+                os.unlink(dest_filename)
+                os.symlink(link_to, dest_filename)
+            else:
+                raise e
+
     def _extract_directory(self, source, files, destination):
         """Extracts all the files in a given directory.
 
@@ -258,9 +288,10 @@ class Asar:
 
             if 'files' in info:
                 self._extract_directory(item_path, info['files'], destination)
-                continue
-
-            self._extract_file(item_path, info, destination)
+            elif 'link' in info:
+                self._extract_link(item_path, info['link'], destination)
+            else:
+                self._extract_file(item_path, info, destination)
 
     def extract(self, path):
         """Extracts this asar file to ``path``.
