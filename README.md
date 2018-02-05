@@ -43,9 +43,15 @@ Relaunching Discord now...
 $
 ```
 
-Pass the `--revert` flag to remove the extracted `app.asar` (it's the `resources/app` folder)
-and rename `original_app.asar` to `app.asar`. You can also do this manually if your Discord
-install gets screwed up.
+Pass the `--revert` flag to restore Discord to its initial state. You can also do this manually if your Discord
+install gets screwed up, by first locating where Discord stores its resources:
+
+- On Windows, it's `C:\Users\<username>\AppData\Roaming\discord[ptb,canary]\<version>\modules\discord_desktop_core`
+- On OSX, it's `~/Library/Application Support/discord[ptb,canary]/<version>/modules/discord_desktop_core`
+- On Linux, it's `~/.config/discordcanary/0.0.xx/modules/discord_desktop_core`
+
+In that folder, there should be four files, with `core.asar` and `original_core.asar` being the interesting ones.
+You should then remove the existing `core.asar` and rename `original_core.asar` to `core.asar`.
 
 ```
 $ beautifuldiscord --revert
