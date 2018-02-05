@@ -186,10 +186,8 @@ def discord_process():
 
 def revert_changes(discord):
     try:
-        shutil.rmtree('./core')
         shutil.move('./original_core.asar', './core.asar')
     except FileNotFoundError as e:
-        # assume things are fine for now I guess
         print('No changes to revert.')
     else:
         print('Reverted changes, no more CSS hot-reload :(')
