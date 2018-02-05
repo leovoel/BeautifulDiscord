@@ -48,7 +48,9 @@ install gets screwed up, by first locating where Discord stores its resources:
 
 - On Windows, it's `C:\Users\<username>\AppData\Roaming\discord[ptb,canary]\<version>\modules\discord_desktop_core`
 - On OSX, it's `~/Library/Application Support/discord[ptb,canary]/<version>/modules/discord_desktop_core`
-- On Linux, it's `~/.config/discordcanary/0.0.xx/modules/discord_desktop_core`
+- On Linux, it's `~/.config/discord[ptb,canary]/<version>/modules/discord_desktop_core`
+
+(`<...>` means it's required, `[...]` means it's optional)
 
 In that folder, there should be four files, with `core.asar` and `original_core.asar` being the interesting ones.
 You should then remove the existing `core.asar` and rename `original_core.asar` to `core.asar`.
