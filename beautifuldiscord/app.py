@@ -303,12 +303,35 @@ def main():
           if(window._fileWatcher !== null) { window._fileWatcher.close(); window._fileWatcher = null; }
         };
 
+        window.removeDuplicateCSS = function(){
+        	const styles = [...document.getElementsByTagName("style")];
+        	const styleTags = window._styleTag;
+        
+        	for(let key in styleTags){
+        		for (var i = 0; i < styles.length; i++) {
+        			const keyStyle = styleTags[key];
+        			const curStyle = styles[i];
+        
+        			if(curStyle !== keyStyle) {
+        				const compare	 = keyStyle.innerText.localeCompare(curStyle.innerText);
+        
+        				if(compare === 0){
+        					const parent = curStyle.parentElement;
+        					parent.removeChild(curStyle);
+        				}
+        			}
+        		}
+        	}
+        };
+
+
         window.applyAndWatchCSS = function(path) {
           window.tearDownCSS();
           window.watchCSS(path);
         };
 
         window.applyAndWatchCSS('%s');
+        window.removeDuplicateCSS();
     """ % args.css.replace('\\', '\\\\'))
 
 
