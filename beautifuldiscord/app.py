@@ -187,12 +187,34 @@ def discord_process():
 def revert_changes(discord):
     try:
         shutil.move('./original_core.asar', './core.asar')
+        shutil.move('./original_index.js', './index.js')
     except FileNotFoundError as e:
         print('No changes to revert.')
     else:
         print('Reverted changes, no more CSS hot-reload :(')
 
     discord.launch()
+
+def remove_csp():
+	shutil.move('./index.js', './original_index.js')
+
+	no_csp_script = textwrap.dedent("""\
+		require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
+			const responseHeaders = {};
+			for (let header in details.responseHeaders) {
+				if (!header.match(/^content-security/i)) {
+					responseHeaders[header] = details.responseHeaders[header]
+				}
+			} callback({
+				cancel: false,
+				responseHeaders
+			});
+		});
+
+		module.exports = require('./core.asar');""")
+	
+	with open('./index.js', 'w', encoding='utf-8') as f:
+		f.write(no_csp_script)
 
 def main():
     args = parse_args()
@@ -335,6 +357,9 @@ def main():
 
     # repack the asar so discord stops complaining
     repack_asar()
+
+    # finally, remove csp by injecting into index.js
+    remove_csp()
 
     print(
         '\nDone!\n' +
