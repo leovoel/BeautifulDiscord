@@ -194,6 +194,12 @@ def revert_changes(discord):
 
     discord.launch()
 
+def allow_https():
+	bypass_csp = "\n\nelectron.webFrame.registerURLSchemeAsBypassingCSP('https');"
+	
+	with open('./core/app/mainScreenPreload.js', 'a', encoding='utf-8') as f:
+		f.write(bypass_csp)
+
 def main():
     args = parse_args()
     try:
@@ -332,6 +338,9 @@ def main():
 
     with open(discord.script_file, 'wb') as f:
         f.write(to_write)
+
+    # allow links with https to bypass csp
+    allow_https()
 
     # repack the asar so discord stops complaining
     repack_asar()
