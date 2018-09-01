@@ -195,7 +195,7 @@ def revert_changes(discord):
     discord.launch()
 
 def allow_https():
-	bypass_csp = "\n\n\n\nwebFrame.registerURLSchemeAsBypassingCSP('https');"
+	bypass_csp = "\n\nwebFrame.registerURLSchemeAsBypassingCSP('https');"
 	
 	with open('./core/app/discord_native/window.js', 'a', encoding='utf-8') as f:
 		f.write(bypass_csp)
