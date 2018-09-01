@@ -195,7 +195,7 @@ def revert_changes(discord):
     discord.launch()
 
 def allow_https():
-	bypass_csp = "\n\nelectron.webFrame.registerURLSchemeAsBypassingCSP('https');"
+	bypass_csp = "\n\nrequire('electron').webFrame.registerURLSchemeAsBypassingCSP('https');"
 	
 	with open('./core/app/mainScreenPreload.js', 'a', encoding='utf-8') as f:
 		f.write(bypass_csp)
