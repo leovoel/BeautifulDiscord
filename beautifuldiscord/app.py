@@ -151,7 +151,7 @@ def discord_process():
         except (psutil.Error, OSError):
             pass
         else:
-            exe.replace('.Discord-wrapped', 'Discord') # NixOS wraps the executable instead of launching it directly
+            exe = exe.replace('.Discord-wrapped', 'Discord') # NixOS wraps the executable instead of launching it directly
             if exe.startswith('Discord') and not exe.endswith('Helper'):
                 entry = executables.get(exe)
 
