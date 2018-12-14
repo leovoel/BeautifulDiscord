@@ -337,9 +337,9 @@ def main():
     # yikes
     to_write = entire_thing[:index] + css_reload_script.encode('utf-8') + entire_thing[index:]
     to_write = to_write.replace(b'nodeIntegration: false', b'nodeIntegration: true', 1)
-    if args.enable_backdrop
+    if args.enable_backdrop:
         to_write = to_write.replace(b'blinkFeatures: "EnumerateDevices,AudioOutputDevices"', b'blinkFeatures: "EnumerateDevices,AudioOutputDevices,CSSBackdropFilter"', 1)
-    if args.enable_transparency
+    if args.enable_transparency:
         to_write = to_write.replace(b'transparent: false"', b'transparent: true"', 1)
 
     with open(discord.script_file, 'wb') as f:
