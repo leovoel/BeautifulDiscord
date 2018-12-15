@@ -151,7 +151,7 @@ def discord_process():
         except (psutil.Error, OSError):
             pass
         else:
-            if exe.startswith('Discord') and not exe.endswith('Helper'):
+            if 'discord' in exe.lower() and not 'Helper' in exe.lower():
                 entry = executables.get(exe)
 
                 if entry is None:
