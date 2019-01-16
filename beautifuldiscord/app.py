@@ -317,7 +317,7 @@ def main():
             _fs.readFileSync('%s', 'utf-8')
           );
         });
-    """ % css_injection_file.replace('\\', '\\\\'))
+    """ % css_injection_file.replace('\\', '\\\\').replace('\'', '\\\'')
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
