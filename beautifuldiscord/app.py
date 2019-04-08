@@ -195,10 +195,18 @@ def revert_changes(discord):
     discord.launch()
 
 def allow_https():
-	bypass_csp = "\n\nwebFrame.registerURLSchemeAsBypassingCSP('https');"
-	
-	with open('./core/app/discord_native/window.js', 'a', encoding='utf-8') as f:
-		f.write(bypass_csp)
+    bypass_csp = textwrap.dedent("""
+    require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
+        if (!details.responseHeaders["content-security-policy"]) return callback({cancel: false});
+        details.responseHeaders["content-security-policy"] = "connect-src https://*";
+        callback({cancel: false, responseHeaders: details.responseHeaders});
+    });
+    """)
+    
+    with open('./index.js', 'r+', encoding='utf-8') as f:
+        content = f.read()
+        f.seek(0, 0)
+        f.write(bypass_csp + '\n' + content)
 
 def main():
     args = parse_args()
