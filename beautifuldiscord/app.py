@@ -73,7 +73,8 @@ class DiscordProcess:
             # folder with the highest version number
             discord_version = os.path.basename(self.path).replace('-', '')
             config = os.path.expanduser(os.path.join('~/.config', discord_version))
-
+            print(config)
+            process.exit()
             versions_found = {}
             for subdirectory in os.listdir(config):
                 if not os.path.isdir(os.path.join(config, subdirectory)):
