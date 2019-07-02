@@ -7,6 +7,7 @@ import textwrap
 import subprocess
 import psutil
 import sys
+import re
 from beautifuldiscord.asar import Asar
 
 class DiscordProcess:
@@ -21,8 +22,11 @@ class DiscordProcess:
             process.kill()
 
     def launch(self):
-        with open(os.devnull, 'w') as f:
-            subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
+        try:
+            with open(os.devnull, 'w') as f:
+                    subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
+        except Exception as err:
+            print("Unable to restart discord, please re-start it manually")
 
     @property
     def resources_path(self):
@@ -71,17 +75,19 @@ class DiscordProcess:
             # The modules are under ~/.config/discordcanary/0.0.xx/modules/discord_desktop_core
             # To get the version number we have to iterate over ~/.config/discordcanary and find the
             # folder with the highest version number
-            discord_version = os.path.basename(self.path).replace('-', '')
-            config = os.path.expanduser(os.path.join('~/.config', discord_version))
-            print(config)
-            process.exit()
+            try:
+                find_config_command="find " + os.path.expanduser('~') + " -name 'discord_desktop_core' -type d 2>&1 | grep -v 'Permission denied'"
+                config_paths = [line for line in subprocess.check_output(find_config_command,shell=True,stderr=subprocess.PIPE).splitlines()]
+            except Exception as e:
+                raise RuntimeError('Could not find discord_desktop_core')
+            config=re.sub('\/[0-9].[0.9].[0.9].*','',config_paths[0].decode("utf-8"))
             versions_found = {}
             for subdirectory in os.listdir(config):
                 if not os.path.isdir(os.path.join(config, subdirectory)):
                     continue
 
                 try:
-                    # versions are A.B.C
+                    # versions are A.B.C (Semantic Versioning)
                     version_info = tuple(int(x) for x in subdirectory.split('.'))
                 except Exception as e:
                     # shucks
@@ -152,7 +158,7 @@ def discord_process():
         except (psutil.Error, OSError):
             pass
         else:
-            if 'discord' in exe.lower() and not 'helper' in exe.lower():
+            if exe.startswith('discord') and not exe.endswith('helper'):
                 entry = executables.get(exe)
 
                 if entry is None:
@@ -196,10 +202,18 @@ def revert_changes(discord):
     discord.launch()
 
 def allow_https():
-	bypass_csp = "\n\nwebFrame.registerURLSchemeAsBypassingCSP('https');"
-	
-	with open('./core/app/discord_native/window.js', 'a', encoding='utf-8') as f:
-		f.write(bypass_csp)
+    bypass_csp = textwrap.dedent("""
+    require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
+        if (!details.responseHeaders["content-security-policy"]) return callback({cancel: false});
+        details.responseHeaders["content-security-policy"] = "connect-src https://*";
+        callback({cancel: false, responseHeaders: details.responseHeaders});
+    });
+    """)
+    
+    with open('./index.js', 'r+', encoding='utf-8') as f:
+        content = f.read()
+        f.seek(0, 0)
+        f.write(bypass_csp + '\n' + content)
 
 def main():
     args = parse_args()
