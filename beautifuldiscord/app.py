@@ -256,12 +256,10 @@ def allow_https():
     });
     """
     )
-
     with open("./index.js", "r+", encoding="utf-8") as f:
         content = f.read()
         f.seek(0, 0)
         f.write(bypass_csp + "\n" + content)
-
 
 def main():
     args = parse_args()
