@@ -197,8 +197,9 @@ def revert_changes(discord):
 def allow_https():
     bypass_csp = textwrap.dedent("""
     require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
-        if (!details.responseHeaders["content-security-policy"]) return callback({cancel: false});
-        details.responseHeaders["content-security-policy"] = "connect-src https://*";
+        let csp = details.responseHeaders["content-security-policy"];
+        if (!csp) return callback({cancel: false});
+        details.responseHeaders["content-security-policy"] = csp[0].replace(/connect-src ([^;]+);/, "connect-src $1 https://*;");
         callback({cancel: false, responseHeaders: details.responseHeaders});
     });
     """)
