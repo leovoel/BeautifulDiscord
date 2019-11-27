@@ -199,7 +199,7 @@ def allow_https():
     require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
         let csp = details.responseHeaders["content-security-policy"];
         if (!csp) return callback({cancel: false});
-        details.responseHeaders["content-security-policy"] = csp[0].replace(/connect-src ([^;]+);/, "connect-src $1 https://*;");
+        details.responseHeaders["content-security-policy"] = csp[0].replace(/connect-src ([^;]+);/, "connect-src $1 https://*; style-src-elem 'unsafe-inline' $1 https://*;");
         callback({cancel: false, responseHeaders: details.responseHeaders});
     });
     """)
