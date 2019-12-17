@@ -72,7 +72,7 @@ class DiscordProcess:
             # To get the version number we have to iterate over ~/.config/discordcanary and find the
             # folder with the highest version number
             discord_version = os.path.basename(self.path).replace('-', '')
-            config = os.path.expanduser(os.path.join('~/.config', discord_version))
+            config = os.path.expanduser(os.path.join(os.getenv('XDG_CONFIG_HOME', '~/.config'), discord_version))
 
             versions_found = {}
             for subdirectory in os.listdir(config):
