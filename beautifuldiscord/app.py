@@ -311,7 +311,7 @@ def main():
     """ % args.css.replace('\\', '\\\\'))
 
 
-    css_injection_path = os.path.expanduser(os.path.join('~', '.beautifuldiscord'))
+    css_injection_path = os.path.expanduser(os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'beautifuldiscord'))
     if not os.path.exists(css_injection_path):
         os.mkdir(css_injection_path)
 
