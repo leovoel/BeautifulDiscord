@@ -203,7 +203,7 @@ def allow_https():
         callback({cancel: false, responseHeaders: details.responseHeaders});
     });
     """)
-    
+
     with open('./index.js', 'r+', encoding='utf-8') as f:
         content = f.read()
         f.seek(0, 0)
@@ -313,7 +313,7 @@ def main():
 
     css_injection_path = os.path.expanduser(os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'beautifuldiscord'))
     if not os.path.exists(css_injection_path):
-        os.mkdir(css_injection_path)
+        os.makedirs(css_injection_path)
 
     css_injection_file = os.path.abspath(os.path.join(css_injection_path, 'cssInjection.js'))
     with open(css_injection_file, 'w', encoding='utf-8') as f:
