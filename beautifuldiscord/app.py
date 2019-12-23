@@ -89,6 +89,7 @@ class DiscordProcess:
             # The modules are under ~/.config/discordcanary/0.0.xx/modules/discord_desktop_core
             # To get the version number we have to iterate over ~/.config/discordcanary and find the
             # folder with the highest version number
+
             try:
                 find_config_command = (
                     "find "
@@ -106,6 +107,7 @@ class DiscordProcess:
             config = re.sub(
                 "\/[0-9].[0.9].[0.9].*", "", config_paths[0].decode("utf-8")
             )
+
             versions_found = {}
             for subdirectory in os.listdir(config):
                 if not os.path.isdir(os.path.join(config, subdirectory)):
@@ -250,8 +252,9 @@ def allow_https():
     bypass_csp = textwrap.dedent(
         """
     require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
-        if (!details.responseHeaders["content-security-policy"]) return callback({cancel: false});
-        details.responseHeaders["content-security-policy"] = "connect-src https://*";
+        let csp = details.responseHeaders["content-security-policy"];
+        if (!csp) return callback({cancel: false});
+        details.responseHeaders["content-security-policy"] = csp[0].replace(/connect-src ([^;]+);/, "connect-src $1 https://*; style-src-elem 'unsafe-inline' $1 https://*;");
         callback({cancel: false, responseHeaders: details.responseHeaders});
     });
     """
@@ -365,9 +368,10 @@ def main():
         % args.css.replace("\\", "\\\\")
     )
 
-    css_injection_path = os.path.expanduser(os.path.join("~", ".beautifuldiscord"))
+
+    css_injection_path = os.path.expanduser(os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'beautifuldiscord'))
     if not os.path.exists(css_injection_path):
-        os.mkdir(css_injection_path)
+        os.makedirs(css_injection_path)
 
     css_injection_file = os.path.abspath(
         os.path.join(css_injection_path, "cssInjection.js")
