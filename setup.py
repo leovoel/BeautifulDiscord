@@ -12,7 +12,7 @@ setup(
     name='BeautifulDiscord',
     author='leovoel',
     url='https://github.com/leovoel/BeautifulDiscord',
-    version='0.1.0',
+    version='0.1.1',
     license='MIT',
     description='Adds custom CSS support to Discord.',
     long_description=readme,
