@@ -249,13 +249,13 @@ def revert_changes(discord):
 
 
 def allow_https():
-    bypass_csp = textwrap.dedent(
-        """
-    require("electron").session.defaultSession.webRequest.onHeadersReceived(function(details, callback) {
-        let csp = details.responseHeaders["content-security-policy"];
-        if (!csp) return callback({cancel: false});
-        details.responseHeaders["content-security-policy"] = csp[0].replace(/connect-src ([^;]+);/, "connect-src $1 https://*; style-src-elem 'unsafe-inline' $1 https://*;");
-        callback({cancel: false, responseHeaders: details.responseHeaders});
+    bypass_csp = textwrap.dedent("""
+    require("electron").session.defaultSession.webRequest.onHeadersReceived(({ responseHeaders }, done) => {
+      Object.keys(responseHeaders)
+      .filter(k => (/^content-security-policy/i).test(k) || (/^x-frame-options/i).test(k))
+      .map(k => (delete responseHeaders[k]));
+
+      done({ responseHeaders });
     });
     """
     )
