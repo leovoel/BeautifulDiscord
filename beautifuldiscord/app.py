@@ -306,15 +306,15 @@ def main():
         window.removeDuplicateCSS = function(){
         	const styles = [...document.getElementsByTagName("style")];
         	const styleTags = window._styleTag;
-        
+
         	for(let key in styleTags){
         		for (var i = 0; i < styles.length; i++) {
         			const keyStyle = styleTags[key];
         			const curStyle = styles[i];
-        
+
         			if(curStyle !== keyStyle) {
         				const compare	 = keyStyle.innerText.localeCompare(curStyle.innerText);
-        
+
         				if(compare === 0){
         					const parent = curStyle.parentElement;
         					parent.removeChild(curStyle);
@@ -350,7 +350,7 @@ def main():
             _fs.readFileSync('%s', 'utf-8')
           );
         });
-    """ % css_injection_file.replace('\\', '\\\\').replace('\'', '\\\'')
+    """ % css_injection_file.replace('\\', '\\\\').replace('\'', '\\\''))
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
