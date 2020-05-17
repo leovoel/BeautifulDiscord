@@ -105,7 +105,7 @@ class DiscordProcess:
             except Exception as e:
                 raise RuntimeError("Could not find discord_desktop_core")
             config = re.sub(
-                "\/[0-9].[0.9].[0.9].*", "", config_paths[0].decode("utf-8")
+                "\/[0-9].[0-9].[0-9].*", "", config_paths[0].decode("utf-8")
             )
 
             versions_found = {}
