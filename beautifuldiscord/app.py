@@ -98,6 +98,11 @@ class DiscordProcess:
     def script_file(self):
         return os.path.join(self.script_path, 'core', 'app', 'mainScreen.js')
 
+    @property
+    def preload_script(self):
+        return os.path.join(self.script_path, 'core', 'app', 'mainScreenPreload.js')
+
+
 def extract_asar():
     try:
         with Asar.open('./core.asar') as a:
@@ -241,13 +246,11 @@ def main():
         return
 
     css_injection_script = textwrap.dedent("""\
-        window._fs = require("fs");
-        window._path = require("path");
         window._fileWatcher = null;
         window._styleTag = {};
 
         window.applyCSS = function(path, name) {
-          var customCSS = window._fs.readFileSync(path, "utf-8");
+          var customCSS = window.BeautifulDiscord.loadFile(path);
           if (!window._styleTag.hasOwnProperty(name)) {
             window._styleTag[name] = document.createElement("style");
             document.head.appendChild(window._styleTag[name]);
@@ -264,30 +267,30 @@ def main():
         }
 
         window.watchCSS = function(path) {
-          if (window._fs.lstatSync(path).isDirectory()) {
-            files = window._fs.readdirSync(path);
+          if (window.BeautifulDiscord.isDirectory(path)) {
+            files = window.BeautifulDiscord.readDir(path);
             dirname = path;
           } else {
-            files = [window._path.basename(path)];
-            dirname = window._path.dirname(path);
+            files = [window.BeautifulDiscord.basename(path)];
+            dirname = window.BeautifulDiscord.dirname(path);
           }
 
           for (var i = 0; i < files.length; i++) {
             var file = files[i];
             if (file.endsWith(".css")) {
-              window.applyCSS(window._path.join(dirname, file), file)
+              window.applyCSS(window.BeautifulDiscord.join(dirname, file), file)
             }
           }
 
           if(window._fileWatcher === null) {
-            window._fileWatcher = window._fs.watch(path, { encoding: "utf-8" },
+            window._fileWatcher = window.BeautifulDiscord.watcher(path,
               function(eventType, filename) {
                 if (!filename.endsWith(".css")) return;
-                path = window._path.join(dirname, filename);
-                if (eventType === "rename" && !window._fs.existsSync(path)) {
+                path = window.BeautifulDiscord.join(dirname, filename);
+                if (eventType === "rename" && !window.BeautifulDiscord.pathExists(path)) {
                   window.clearCSS(filename);
                 } else {
-                  window.applyCSS(window._path.join(dirname, filename), filename);
+                  window.applyCSS(window.BeautifulDiscord.join(dirname, filename), filename);
                 }
               }
             );
@@ -332,25 +335,57 @@ def main():
 
         window.applyAndWatchCSS('%s');
         window.removeDuplicateCSS();
-    """ % args.css.replace('\\', '\\\\'))
+    """ % args.css.replace('\\', '/'))
 
-
-    css_injection_path = os.path.expanduser(os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'beautifuldiscord'))
-    if not os.path.exists(css_injection_path):
-        os.makedirs(css_injection_path)
-
-    css_injection_file = os.path.abspath(os.path.join(css_injection_path, 'cssInjection.js'))
-    with open(css_injection_file, 'w', encoding='utf-8') as f:
-        f.write(css_injection_script)
 
     css_reload_script = textwrap.dedent("""\
         mainWindow.webContents.on('dom-ready', function () {
-          var _fs = require('fs');
-          mainWindow.webContents.executeJavaScript(
-            _fs.readFileSync('%s', 'utf-8')
-          );
+          mainWindow.webContents.executeJavaScript(`%s`);
         });
-    """ % css_injection_file.replace('\\', '\\\\').replace('\'', '\\\''))
+    """ % css_injection_script)
+
+    load_file_script = textwrap.dedent("""\
+        const fs = require('fs');
+        const path = require('path');
+
+        contextBridge.exposeInMainWorld('BeautifulDiscord', {
+            loadFile: (fileName) => {
+                return fs.readFileSync(fileName, 'utf-8');
+            },
+            readDir: (p) => {
+                return fs.readdirSync(p);
+            },
+            pathExists: (p) => {
+                return fs.existsSync(p);
+            },
+            watcher: (p, cb) => {
+                return fs.watch(p, { encoding: "utf-8" }, cb);
+            },
+            join: (a, b) => {
+                return path.join(a, b);
+            },
+            basename: (p) => {
+                return path.basename(p);
+            },
+            dirname: (p) => {
+                return path.dirname(p);
+            },
+            isDirectory: (p) => {
+                return fs.lstatSync(p).isDirectory()
+            }
+        });
+
+        process.once('loaded', () => {
+            global.require = require;
+    """)
+
+    with open(discord.preload_script, 'rb') as fp:
+        preload = fp.read()
+
+    preload = preload.replace(b"process.once('loaded', () => {", load_file_script.encode('utf-8'), 1)
+
+    with open(discord.preload_script, 'wb') as fp:
+        fp.write(preload)
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
