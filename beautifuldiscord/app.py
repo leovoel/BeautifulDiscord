@@ -345,33 +345,33 @@ def main():
     """ % css_injection_script)
 
     load_file_script = textwrap.dedent("""\
-        const fs = require('fs');
-        const path = require('path');
+        const bd_fs = require('fs');
+        const bd_path = require('path');
 
         contextBridge.exposeInMainWorld('BeautifulDiscord', {
             loadFile: (fileName) => {
-                return fs.readFileSync(fileName, 'utf-8');
+                return bd_fs.readFileSync(fileName, 'utf-8');
             },
             readDir: (p) => {
-                return fs.readdirSync(p);
+                return bd_fs.readdirSync(p);
             },
             pathExists: (p) => {
-                return fs.existsSync(p);
+                return bd_fs.existsSync(p);
             },
             watcher: (p, cb) => {
-                return fs.watch(p, { encoding: "utf-8" }, cb);
+                return bd_fs.watch(p, { encoding: "utf-8" }, cb);
             },
             join: (a, b) => {
-                return path.join(a, b);
+                return bd_path.join(a, b);
             },
             basename: (p) => {
-                return path.basename(p);
+                return bd_path.basename(p);
             },
             dirname: (p) => {
-                return path.dirname(p);
+                return bd_path.dirname(p);
             },
             isDirectory: (p) => {
-                return fs.lstatSync(p).isDirectory()
+                return bd_fs.lstatSync(p).isDirectory()
             }
         });
 
