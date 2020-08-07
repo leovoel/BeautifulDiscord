@@ -382,10 +382,14 @@ def main():
     with open(discord.preload_script, 'rb') as fp:
         preload = fp.read()
 
-    preload = preload.replace(b"process.once('loaded', () => {", load_file_script.encode('utf-8'), 1)
+    if b"contextBridge.exposeInMainWorld('BeautifulDiscord'," not in preload:
+        preload = preload.replace(b"process.once('loaded', () => {", load_file_script.encode('utf-8'), 1)
 
-    with open(discord.preload_script, 'wb') as fp:
-        fp.write(preload)
+        with open(discord.preload_script, 'wb') as fp:
+            fp.write(preload)
+    else:
+        print('info: preload script has already been injected, exiting')
+        return
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
