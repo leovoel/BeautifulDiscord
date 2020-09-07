@@ -406,7 +406,6 @@ def main():
 
     # yikes
     to_write = entire_thing[:index] + css_reload_script.encode('utf-8') + entire_thing[index:]
-    to_write = to_write.replace(b'nodeIntegration: false', b'nodeIntegration: true', 1)
 
     with open(discord.script_file, 'wb') as f:
         f.write(to_write)
