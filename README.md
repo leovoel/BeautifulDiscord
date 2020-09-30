@@ -1,11 +1,11 @@
 BeautifulDiscord
 ================
 
-Simple Python script that adds CSS hot-reload to Discord.
+Simple Python script that adds CSS for well designed DISCORD that looks beautiful.
 
 ![demo gif](http://i.imgur.com/xq4HS5f.gif)
 
-## Motivation
+## Motivation:
 
 I wanted custom CSS injection for Discord, with no JavaScript add-ons or anything.
 That's BeautifulDiscord.
@@ -17,7 +17,7 @@ If you want JS, you can either:
 You could also fork this repo and add it, it's not that big of a stretch.
 I just didn't add it because it's not what I want to do here.
 
-## Usage
+## Usage:
 
 Just invoke the script when installed. If you don't pass the `--css` flag, the stylesheet
 will be placed wherever the Discord app resources are found, which is not a very convenient
@@ -67,7 +67,7 @@ $
 You can also run it as a package - i.e. `python3 -m beautifuldiscord` - if somehow you cannot
 install it as a script that you can run from anywhere.
 
-## Installing
+## Installing:
 
 ```
 python3 -m pip install -U https://github.com/leovoel/BeautifulDiscord/archive/master.zip
@@ -75,13 +75,13 @@ python3 -m pip install -U https://github.com/leovoel/BeautifulDiscord/archive/ma
 
 Usage of a virtual environment is recommended, to not pollute your global package space.
 
-## Requirements
+## Requirements:
 
 - Python 3.x (no interest in compatibility with 2.x, untested on Python 3.x versions below 3.4)
 - `psutil` library: https://github.com/giampaolo/psutil
 
 Normally, `pip` should install any required dependencies.
 
-## More GIFs
+## More GIFs:
 
 ![demo gif](http://i.imgur.com/w0bQOJ6.gif)
