@@ -212,6 +212,13 @@ def allow_https():
     });
     """)
 
+    with open('./index.js', 'r', encoding='utf-8') as f:
+        data = f.read()
+
+    if bypass_csp in data:
+        print('CSP already bypassed, skipping.')
+        return
+
     with open('./index.js', 'r+', encoding='utf-8') as f:
         content = f.read()
         f.seek(0, 0)
@@ -390,8 +397,7 @@ def main():
         with open(discord.preload_script, 'wb') as fp:
             fp.write(preload)
     else:
-        print('info: preload script has already been injected, exiting')
-        return
+        print('info: preload script has already been injected, skipping')
 
     with open(discord.script_file, 'rb') as f:
         entire_thing = f.read()
