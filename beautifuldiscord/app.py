@@ -212,15 +212,12 @@ def allow_https():
     });
     """)
 
-    with open('./index.js', 'r', encoding='utf-8') as f:
-        data = f.read()
-
-    if bypass_csp in data:
-        print('CSP already bypassed, skipping.')
-        return
-
     with open('./index.js', 'r+', encoding='utf-8') as f:
         content = f.read()
+        if bypass_csp in content:
+            print('CSP already bypassed, skipping.')
+            return
+
         f.seek(0, 0)
         f.write(bypass_csp + '\n' + content)
 
