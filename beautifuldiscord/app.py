@@ -7,7 +7,9 @@ import textwrap
 import subprocess
 import psutil
 import sys
+import re
 from beautifuldiscord.asar import Asar
+
 
 class DiscordProcess:
     def __init__(self, path, exe):
@@ -21,58 +23,90 @@ class DiscordProcess:
             process.kill()
 
     def launch(self):
-        with open(os.devnull, 'w') as f:
-            subprocess.Popen([os.path.join(self.path, self.exe)], stdout=f, stderr=subprocess.STDOUT)
+        try:
+            with open(os.devnull, "w") as f:
+                subprocess.Popen(
+                    [os.path.join(self.path, self.exe)],
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                )
+        except Exception as err:
+            print("Unable to restart discord, please re-start it manually")
 
     @property
     def resources_path(self):
-        if sys.platform == 'darwin':
+        if sys.platform == "darwin":
             # OS X has a different resources path
             # Application directory is under <[EXE].app/Contents/MacOS/[EXE]>
             # where [EXE] is Discord Canary, Discord PTB, etc
             # Resources directory is under </Applications/[EXE].app/Contents/Resources/app.asar>
             # So we need to fetch the folder based on the executable path.
             # Go two directories up and then go to Resources directory.
-            return os.path.abspath(os.path.join(self.path, '..', 'Resources'))
-        return os.path.join(self.path, 'resources')
+            return os.path.abspath(os.path.join(self.path, "..", "Resources"))
+        return os.path.join(self.path, "resources")
 
     @property
     def script_path(self):
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             # On Windows:
             # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
             # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core
             # don't try this at home
             path = os.path.split(self.path)
-            app_version = path[1].replace('app-', '')
+            app_version = path[1].replace("app-", "")
             discord_version = os.path.basename(path[0])
-            return os.path.expandvars(os.path.join('%AppData%',
-                                                   discord_version,
-                                                   app_version,
-                                                   r'modules\discord_desktop_core'))
-        elif sys.platform == 'darwin':
+            return os.path.expandvars(
+                os.path.join(
+                    "%AppData%",
+                    discord_version,
+                    app_version,
+                    r"modules\discord_desktop_core",
+                )
+            )
+        elif sys.platform == "darwin":
             # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
             # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
             # After we obtain the Info.plist, we parse it for the `CFBundleVersion` key
             # The actual path ends up being in ~/Library/Application Support/<DiscordLower>/<version>/modules/...
             import plistlib as plist
-            info = os.path.abspath(os.path.join(self.path, '..', 'Info.plist'))
-            with open(info, 'rb') as fp:
+
+            info = os.path.abspath(os.path.join(self.path, "..", "Info.plist"))
+            with open(info, "rb") as fp:
                 info = plist.load(fp)
 
-            app_version = info['CFBundleVersion']
-            discord_version = info['CFBundleName'].replace(' ', '').lower()
-            return os.path.expanduser(os.path.join('~/Library/Application Support',
-                                                  discord_version,
-                                                  app_version,
-                                                  'modules/discord_desktop_core'))
+            app_version = info["CFBundleVersion"]
+            discord_version = info["CFBundleName"].replace(" ", "").lower()
+            return os.path.expanduser(
+                os.path.join(
+                    "~/Library/Application Support",
+                    discord_version,
+                    app_version,
+                    "modules/discord_desktop_core",
+                )
+            )
         else:
             # Discord is available typically on /opt/discord-canary directory
             # The modules are under ~/.config/discordcanary/0.0.xx/modules/discord_desktop_core
             # To get the version number we have to iterate over ~/.config/discordcanary and find the
             # folder with the highest version number
-            discord_version = os.path.basename(self.path).replace('-', '')
-            config = os.path.expanduser(os.path.join(os.getenv('XDG_CONFIG_HOME', '~/.config'), discord_version))
+
+            try:
+                find_config_command = (
+                    "find "
+                    + os.path.expanduser("~")
+                    + " -name 'discord_desktop_core' -type d 2>&1 | grep -v 'Permission denied'"
+                )
+                config_paths = [
+                    line
+                    for line in subprocess.check_output(
+                        find_config_command, shell=True, stderr=subprocess.PIPE
+                    ).splitlines()
+                ]
+            except Exception as e:
+                raise RuntimeError("Could not find discord_desktop_core")
+            config = re.sub(
+                "\/[0-9].[0-9].[0-9].*", "", config_paths[0].decode("utf-8")
+            )
 
             versions_found = {}
             for subdirectory in os.listdir(config):
@@ -80,8 +114,8 @@ class DiscordProcess:
                     continue
 
                 try:
-                    # versions are A.B.C
-                    version_info = tuple(int(x) for x in subdirectory.split('.'))
+                    # versions are A.B.C (Semantic Versioning)
+                    version_info = tuple(int(x) for x in subdirectory.split("."))
                 except Exception as e:
                     # shucks
                     continue
@@ -89,14 +123,21 @@ class DiscordProcess:
                     versions_found[subdirectory] = version_info
 
             if len(versions_found) == 0:
-                raise RuntimeError('Could not find discord application version under "{}".'.format(config))
+                raise RuntimeError(
+                    'Could not find discord application version under "{}".'.format(
+                        config
+                    )
+                )
 
             app_version = max(versions_found.items(), key=lambda t: t[1])
-            return os.path.join(config, app_version[0], 'modules', 'discord_desktop_core')
+            return os.path.join(
+                config, app_version[0], "modules", "discord_desktop_core"
+            )
 
     @property
     def script_file(self):
-        return os.path.join(self.script_path, 'core', 'app', 'mainScreen.js')
+        return os.path.join(self.script_path, "core", "app", "mainScreen.js")
+
 
     @property
     def preload_script(self):
@@ -105,34 +146,36 @@ class DiscordProcess:
 
 def extract_asar():
     try:
-        with Asar.open('./core.asar') as a:
+        with Asar.open("./core.asar") as a:
             try:
-                a.extract('./core')
+                a.extract("./core")
             except FileExistsError:
-                answer = input('asar already extracted, overwrite? (Y/n): ')
+                answer = input("asar already extracted, overwrite? (Y/n): ")
 
-                if answer.lower().startswith('n'):
-                    print('Exiting.')
+                if answer.lower().startswith("n"):
+                    print("Exiting.")
                     return False
 
-                shutil.rmtree('./core')
-                a.extract('./core')
+                shutil.rmtree("./core")
+                a.extract("./core")
 
-        shutil.move('./core.asar', './original_core.asar')
+        shutil.move("./core.asar", "./original_core.asar")
     except FileNotFoundError as e:
-        print('WARNING: app.asar not found')
+        print("WARNING: app.asar not found")
 
     return True
 
+
 def repack_asar():
     try:
-        with Asar.from_path('./core') as a:
-            with open('./core.asar', 'wb') as fp:
+        with Asar.from_path("./core") as a:
+            with open("./core.asar", "wb") as fp:
                 a.fp.seek(0)
                 fp.write(a.fp.read())
-        shutil.rmtree('./core')
+        shutil.rmtree("./core")
     except Exception as e:
-        print('ERROR: {0.__class__.__name__} {0}'.format(e))
+        print("ERROR: {0.__class__.__name__} {0}".format(e))
+
 
 def parse_args():
     description = """\
@@ -143,10 +186,19 @@ Discord will close and then be relaunched when the tool completes.
 CSS files must have the ".css" extension.
 """
     parser = argparse.ArgumentParser(description=description.strip())
-    parser.add_argument('--css', metavar='file_or_dir', help='Location of the file or directory to watch')
-    parser.add_argument('--revert', action='store_true', help='Reverts any changes made to Discord (does not delete CSS)')
+    parser.add_argument(
+        "--css",
+        metavar="file_or_dir",
+        help="Location of the file or directory to watch",
+    )
+    parser.add_argument(
+        "--revert",
+        action="store_true",
+        help="Reverts any changes made to Discord (does not delete CSS)",
+    )
     args = parser.parse_args()
     return args
+
 
 def discord_process():
     executables = {}
@@ -156,7 +208,7 @@ def discord_process():
         except (psutil.Error, OSError):
             pass
         else:
-            if exe.startswith('Discord') and not exe.endswith('Helper'):
+            if "discord" in exe.lower() and not "helper" in exe.lower():
                 entry = executables.get(exe)
 
                 if entry is None:
@@ -165,39 +217,41 @@ def discord_process():
                 entry.processes.append(proc)
 
     if len(executables) == 0:
-        raise RuntimeError('Could not find Discord executable.')
+        raise RuntimeError("Could not find Discord executable.")
 
     if len(executables) == 1:
         r = executables.popitem()
-        print('Found {0.exe} under {0.path}'.format(r[1]))
+        print("Found {0.exe} under {0.path}".format(r[1]))
         return r[1]
 
     lookup = list(executables)
     for index, exe in enumerate(lookup):
-        print('%s: Found %s' % (index, exe))
+        print("%s: Found %s" % (index, exe))
 
     while True:
         index = input("Discord executable to use (number): ")
         try:
             index = int(index)
         except ValueError as e:
-            print('Invalid index passed')
+            print("Invalid index passed")
         else:
             if index >= len(lookup) or index < 0:
-                print('Index too big (or small)')
+                print("Index too big (or small)")
             else:
                 key = lookup[index]
                 return executables[key]
 
+
 def revert_changes(discord):
     try:
-        shutil.move('./original_core.asar', './core.asar')
+        shutil.move("./original_core.asar", "./core.asar")
     except FileNotFoundError as e:
-        print('No changes to revert.')
+        print("No changes to revert.")
     else:
-        print('Reverted changes, no more CSS hot-reload :(')
+        print("Reverted changes, no more CSS hot-reload :(")
 
     discord.launch()
+
 
 def allow_https():
     bypass_csp = textwrap.dedent("""
@@ -210,16 +264,16 @@ def allow_https():
       responseHeaders["content-security-policy"] = header;
       done({ responseHeaders });
     });
-    """)
-
-    with open('./index.js', 'r+', encoding='utf-8') as f:
+    """
+    )
+    with open("./index.js", "r+", encoding="utf-8") as f:
         content = f.read()
         if bypass_csp in content:
             print('CSP already bypassed, skipping.')
             return
 
         f.seek(0, 0)
-        f.write(bypass_csp + '\n' + content)
+        f.write(bypass_csp + "\n" + content)
 
 def main():
     args = parse_args()
@@ -232,7 +286,7 @@ def main():
     if args.css:
         args.css = os.path.abspath(args.css)
     else:
-        args.css = os.path.join(discord.script_path, 'discord-custom.css')
+        args.css = os.path.join(discord.script_path, "discord-custom.css")
 
     os.chdir(discord.script_path)
 
@@ -244,8 +298,8 @@ def main():
         return revert_changes(discord)
 
     if not os.path.exists(args.css):
-        with open(args.css, 'w', encoding='utf-8') as f:
-            f.write('/* put your custom css here. */\n')
+        with open(args.css, "w", encoding="utf-8") as f:
+            f.write("/* put your custom css here. */\n")
 
     if not extract_asar():
         discord.launch()
@@ -396,15 +450,17 @@ def main():
     else:
         print('info: preload script has already been injected, skipping')
 
-    with open(discord.script_file, 'rb') as f:
+    with open(discord.script_file, "rb") as f:
         entire_thing = f.read()
 
     index = entire_thing.index(b"mainWindow.on('blur'")
 
     if index == -1:
         # failed replace for some reason?
-        print('warning: nothing was done.\n' \
-              'note: blur event was not found for the injection point.')
+        print(
+            "warning: nothing was done.\n"
+            "note: blur event was not found for the injection point."
+        )
         revert_changes(discord)
         discord.launch()
         return
@@ -412,7 +468,7 @@ def main():
     # yikes
     to_write = entire_thing[:index] + css_reload_script.encode('utf-8') + entire_thing[index:]
 
-    with open(discord.script_file, 'wb') as f:
+    with open(discord.script_file, "wb") as f:
         f.write(to_write)
 
     # allow links with https to bypass csp
@@ -422,14 +478,14 @@ def main():
     repack_asar()
 
     print(
-        '\nDone!\n' +
-        '\nYou may now edit your %s file,\n' % os.path.abspath(args.css) +
-        "which will be reloaded whenever it's saved.\n" +
-        '\nRelaunching Discord now...'
+        "\nDone!\n"
+        + "\nYou may now edit your %s file,\n" % os.path.abspath(args.css)
+        + "which will be reloaded whenever it's saved.\n"
+        + "\nRelaunching Discord now..."
     )
 
     discord.launch()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
