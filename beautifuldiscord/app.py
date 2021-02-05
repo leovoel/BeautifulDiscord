@@ -46,10 +46,22 @@ class DiscordProcess:
             path = os.path.split(self.path)
             app_version = path[1].replace('app-', '')
             discord_version = os.path.basename(path[0])
-            return os.path.expandvars(os.path.join('%AppData%',
-                                                   discord_version,
-                                                   app_version,
-                                                   r'modules\discord_desktop_core'))
+            # Iterate through the paths...
+            base = os.path.join(self.path, 'modules')
+            versions = []
+            for directory in os.listdir(base):
+                if directory.startswith('discord_desktop_core'):
+                    (_, _, version) = directory.partition('-')
+                    if version.isdigit():
+                        versions.append(int(version))
+                    else:
+                        # If we have an unversioned directory then maybe they stopped doing this dumb stuff.
+                        return os.path.join(base, directory)
+
+            # Get the highest version number
+            version = max(versions)
+            return os.path.join(base, 'discord_desktop_core-%d' % version, 'discord_desktop_core')
+
         elif sys.platform == 'darwin':
             # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
             # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
