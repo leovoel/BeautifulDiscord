@@ -41,15 +41,16 @@ class DiscordProcess:
         if sys.platform == 'win32':
             # On Windows:
             # path is C:\Users\<UserName>\AppData\Local\<Discord>\app-<version>
-            # script: C:\Users\<UserName>\AppData\Roaming\<DiscordLower>\<version>\modules\discord_desktop_core
+            # script: C:\Users\<UserName>\AppData\Local\<DiscordLower>\app-<version>\modules\discord_desktop_core-1\discord_desktop_core :)
             # don't try this at home
             path = os.path.split(self.path)
             app_version = path[1].replace('app-', '')
+            app_folder_name = 'app-'+app_version
             discord_version = os.path.basename(path[0])
-            return os.path.expandvars(os.path.join('%AppData%',
+            return os.path.expandvars(os.path.join('%LOCALAPPDATA%',
                                                    discord_version,
-                                                   app_version,
-                                                   r'modules\discord_desktop_core'))
+                                                   app_folder_name,
+                                                   r'modules\discord_desktop_core-1\discord_desktop_core'))
         elif sys.platform == 'darwin':
             # macOS doesn't encode the app version in the path, but rather it stores it in the Info.plist
             # which we can find in the root directory e.g. </Applications/[EXE].app/Contents/Info.plist>
