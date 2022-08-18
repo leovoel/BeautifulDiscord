@@ -83,7 +83,7 @@ class DiscordProcess:
             # The modules are under ~/.config/discordcanary/0.0.xx/modules/discord_desktop_core
             # To get the version number we have to iterate over ~/.config/discordcanary and find the
             # folder with the highest version number
-            discord_version = os.path.basename(self.path).replace('-', '')
+            discord_version = os.path.basename(self.path).replace('-', '').lower()
             config = os.path.expanduser(os.path.join(os.getenv('XDG_CONFIG_HOME', '~/.config'), discord_version))
 
             versions_found = {}
