@@ -70,7 +70,7 @@ install it as a script that you can run from anywhere.
 ## Installing
 
 ```
-python3 -m pip install -U https://github.com/leovoel/BeautifulDiscord/archive/master.zip
+sudo python3 -m pip install -U https://github.com/leovoel/BeautifulDiscord/archive/master.zip
 ```
 
 Usage of a virtual environment is recommended, to not pollute your global package space.
