@@ -272,7 +272,7 @@ def main():
           var customCSS = window.BeautifulDiscord.loadFile(path);
           if (!window._styleTag.hasOwnProperty(name)) {
             window._styleTag[name] = document.createElement("style");
-            document.head.appendChild(window._styleTag[name]);
+            document.documentElement.appendChild(window._styleTag[name]);
           }
           window._styleTag[name].innerHTML = customCSS;
         }
